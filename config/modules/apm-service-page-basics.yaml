@@ -1,0 +1,32 @@
+# DEJ enablement module definition.
+# A module groups the enablement topic with the quest(s) participants solve.
+id: apm-service-page-basics
+title: APM Service Page Basics
+# Japanese display title shown in the UI.
+display_title: APM Service Page の基礎
+
+# Short enablement summary shown before/around the hands-on challenge.
+description: >-
+  Datadog APM の Service Page を起点に、サービスの状態 (RED metrics)、
+  Resource Breakdown、下流サービス、Trace Sample を確認し、レイテンシ悪化の
+  原因を特定する調査の基礎を学びます。
+
+# Investigation path this module teaches.
+investigation_path:
+  - APM Service Page
+  - RED metrics (requests / errors / duration)
+  - Resource breakdown
+  - Downstream dependency / trace sample
+  - Root cause service
+
+learning_objectives:
+  - 参加者は APM Service Page を使ってサービスレベルのレイテンシ、エラー、リクエスト量を確認できる。
+  - 参加者は Resource Breakdown を使って影響を受けている Endpoint / Resource を特定できる。
+  - 参加者は Trace Sample を使って遅い下流サービスを特定できる。
+
+# Quests that belong to this module.
+quests:
+  - apm-slow-checkout
+
+# Default scenario used to generate telemetry for this module.
+default_scenario: apm-slow-checkout-inventory

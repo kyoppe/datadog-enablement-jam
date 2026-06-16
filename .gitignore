@@ -1,0 +1,27 @@
+# Secrets / env
+.env
+*.env.local
+
+# Node / Next.js
+node_modules/
+apps/web/.next/
+apps/web/out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local JSON store (runtime data)
+apps/web/data/*.json
+!apps/web/data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/

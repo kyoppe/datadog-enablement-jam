@@ -1,0 +1,62 @@
+# DEJ quest definition.
+# This is the source of truth for the quest shown in the Player UI and for scoring.
+# UI-facing copy is Japanese; identifiers and config keys stay English.
+id: apm-slow-checkout
+module: apm-service-page-basics
+scenario: apm-slow-checkout-inventory
+
+# Internal English title.
+title: Slow Checkout Investigation
+# Japanese display title shown to participants.
+display_title: チェックアウト遅延の調査
+
+description: >-
+  checkout-service のレイテンシが悪化しています。Datadog APM の Service Page を
+  起点に、サービスの状態、Resource Breakdown、下流サービス、Trace Sample を確認し、
+  遅延の原因となっている下流サービスを特定してください。
+
+# Recommended starting point shown prominently in the Player UI.
+starting_point: まず checkout-service の APM Service Page から調査を開始してください。
+
+# Answer fields the player must submit.
+answer_fields:
+  root_cause_service:
+    label: 原因となっている下流サービス
+    required: true
+  affected_resource:
+    label: 影響を受けている Resource / Endpoint
+    required: true
+  evidence_url:
+    label: 根拠となる Datadog URL (任意)
+    required: false
+
+# Expected answers. Matching is case-insensitive and trimmed (see scoring.ts).
+expected:
+  root_cause_service: inventory-service
+  affected_resource: POST /api/checkout/confirm
+
+scoring:
+  points:
+    root_cause_service: 300
+    affected_resource: 200
+    evidence_url: 100
+  # Base (600) + speed_bonus.max (200). Displayed score is floored at 0.
+  max_score: 800
+  # Wrong answers do not reduce score (CTF-style); they are only counted.
+  hint_penalties:
+    - -50   # hint 1
+    - -100  # hint 2
+    - -150  # hint 3
+  # Time bonus awarded once when the quest is solved. Decays linearly from
+  # `max` down to 0 over `window_seconds` since the player joined.
+  speed_bonus:
+    max: 200
+    window_seconds: 900
+
+hints:
+  - label: ヒント 1
+    text: checkout-service の Service Page で、レイテンシの変化を確認してください。
+  - label: ヒント 2
+    text: Resource Breakdown を使って、レイテンシが高い Resource を探してください。
+  - label: ヒント 3
+    text: 該当する Trace Sample を開き、下流サービスの Span Duration を比較してください。

@@ -1,0 +1,13 @@
+# Reference base image steps shared by all demo-app services.
+# Each service has its own Dockerfile (build context: apps/demo-app) that copies
+# the shared `common` package plus its own `main.py`. This file documents the
+# common pattern; it is not built directly.
+#
+#   FROM python:3.11-slim
+#   WORKDIR /app
+#   COPY requirements.txt .
+#   RUN pip install --no-cache-dir -r requirements.txt
+#   COPY common ./common
+#   COPY <service>/main.py ./main.py
+#   ENV PYTHONUNBUFFERED=1
+#   CMD ["ddtrace-run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

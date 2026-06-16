@@ -1,0 +1,114 @@
+# ---------------------------------------------------------------------------
+# Datadog Enablement Jam (DEJ) - data plane
+# ---------------------------------------------------------------------------
+# Generates Datadog APM telemetry for the "apm-slow-checkout-inventory" scenario.
+#
+# Flow:
+#   traffic-generator -> frontend-service -> checkout-service
+#                                              |-> payment-service
+#                                              |-> inventory-service (slow)
+#
+# All services are tagged with the session-scoped tags:
+#   dej_session, dej_module, dej_scenario
+#
+# Start with:  make scenario SESSION=<session_id>
+# ---------------------------------------------------------------------------
+
+x-dej-tags: &dej-tags
+  DD_ENV: ${DD_ENV:-dej}
+  DD_VERSION: ${DD_VERSION:-dev}
+  DD_AGENT_HOST: ${DD_AGENT_HOST:-datadog-agent}
+  DD_TRACE_AGENT_PORT: ${DD_TRACE_AGENT_PORT:-8126}
+  DEJ_SESSION: ${DEJ_SESSION:-local-dev}
+  DEJ_MODULE: ${DEJ_MODULE:-apm-service-page-basics}
+  DEJ_SCENARIO: ${DEJ_SCENARIO:-apm-slow-checkout-inventory}
+
+services:
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    environment:
+      DD_API_KEY: ${DD_API_KEY:?set DD_API_KEY in .env}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_ENV: ${DD_ENV:-dej}
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_CONTAINER_EXCLUDE: "name:datadog-agent"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    ports:
+      - "8126:8126"   # APM trace intake (host -> agent), handy for local debugging
+
+  frontend-service:
+    build:
+      context: ./apps/demo-app
+      dockerfile: frontend-service/Dockerfile
+    environment:
+      <<: *dej-tags
+      DD_SERVICE: frontend-service
+      CHECKOUT_SERVICE_URL: http://checkout-service:8000
+    depends_on:
+      - datadog-agent
+      - checkout-service
+
+  checkout-service:
+    build:
+      context: ./apps/demo-app
+      dockerfile: checkout-service/Dockerfile
+    environment:
+      <<: *dej-tags
+      DD_SERVICE: checkout-service
+      PAYMENT_SERVICE_URL: http://payment-service:8000
+      INVENTORY_SERVICE_URL: http://inventory-service:8000
+    depends_on:
+      - datadog-agent
+      - payment-service
+      - inventory-service
+
+  payment-service:
+    build:
+      context: ./apps/demo-app
+      dockerfile: payment-service/Dockerfile
+    environment:
+      <<: *dej-tags
+      DD_SERVICE: payment-service
+    depends_on:
+      - datadog-agent
+
+  inventory-service:
+    build:
+      context: ./apps/demo-app
+      dockerfile: inventory-service/Dockerfile
+    environment:
+      <<: *dej-tags
+      DD_SERVICE: inventory-service
+      # Intentionally slow during the scenario to degrade checkout latency.
+      INVENTORY_EXTRA_LATENCY_MS: ${INVENTORY_EXTRA_LATENCY_MS:-800}
+    depends_on:
+      - datadog-agent
+
+  traffic-generator:
+    build:
+      context: ./apps/traffic-generator
+      dockerfile: Dockerfile
+    environment:
+      <<: *dej-tags
+      DD_SERVICE: traffic-generator
+      FRONTEND_SERVICE_URL: http://frontend-service:8000
+      TRAFFIC_INTERVAL_SECONDS: ${TRAFFIC_INTERVAL_SECONDS:-1.0}
+    depends_on:
+      - frontend-service
+
+  # Optional Phase 2 component. Disabled by default via the "runner" profile.
+  runner:
+    build:
+      context: ./apps/runner
+      dockerfile: Dockerfile
+    profiles: ["runner"]
+    environment:
+      DEJ_CONTROL_PLANE_URL: ${DEJ_CONTROL_PLANE_URL:-http://host.docker.internal:3000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

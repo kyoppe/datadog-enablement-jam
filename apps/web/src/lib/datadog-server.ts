@@ -62,7 +62,7 @@ export async function reportPlayerScore(player: Player, sessionId: string): Prom
       // Quest config missing; tag as unknown rather than dropping the point.
     }
     return {
-      metric: "dej.score",
+      metric: "tem.dej.score",
       type: 3,
       points: [{ timestamp: now, value: displayScore(progress) }],
       tags: [...baseTags, `dej_module:${moduleId}`, `dej_quest:${progress.questId}`],
@@ -73,7 +73,7 @@ export async function reportPlayerScore(player: Player, sessionId: string): Prom
 
   if (!metricsEnabled()) {
     console.log(
-      `[dej][test] would submit ${series.length} dej.score points for ${player.handle} (${player.email}) — set DEJ_SEND_METRICS=true to enable`,
+      `[dej][test] would submit ${series.length} tem.dej.score points for ${player.handle} (${player.email}) — set DEJ_SEND_METRICS=true to enable`,
     );
     return;
   }
@@ -96,7 +96,7 @@ export async function reportPlayerScore(player: Player, sessionId: string): Prom
 }
 
 // Emit a point when a player confirms they logged into Datadog. Visualize on a
-// QueryValue widget as `count_nonzero(sum:dej.player.logged_in{...} by {dej_handle})`
+// QueryValue widget as `count_nonzero(sum:tem.dej.player.logged_in{...} by {dej_handle})`
 // (or unique dej_handle count) to show the host "N / M logged in" live.
 export async function reportPlayerLoggedIn(
   player: Player,
@@ -104,7 +104,7 @@ export async function reportPlayerLoggedIn(
 ): Promise<void> {
   const series: Series[] = [
     {
-      metric: "dej.player.logged_in",
+      metric: "tem.dej.player.logged_in",
       type: 3,
       points: [{ timestamp: Math.floor(Date.now() / 1000), value: 1 }],
       tags: [
@@ -118,7 +118,7 @@ export async function reportPlayerLoggedIn(
 
   if (!metricsEnabled()) {
     console.log(
-      `[dej][test] would submit dej.player.logged_in for ${player.handle} (${player.email}) — set DEJ_SEND_METRICS=true to enable`,
+      `[dej][test] would submit tem.dej.player.logged_in for ${player.handle} (${player.email}) — set DEJ_SEND_METRICS=true to enable`,
     );
     return;
   }

@@ -4,7 +4,7 @@ import { reportPlayerLoggedIn } from "@/lib/datadog-server";
 
 // POST /api/login  { sessionId, email }
 // A player confirms ("ログインしました") that they logged into Datadog. Records
-// the timestamp and emits the dej.player.logged_in metric for the live host
+// the timestamp and emits the tem.dej.player.logged_in metric for the live host
 // QueryValue widget. Idempotent.
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));

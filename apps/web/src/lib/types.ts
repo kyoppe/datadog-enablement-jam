@@ -70,7 +70,7 @@ export interface Player {
   provisioned: boolean;
   joinedAt: string;
   // When the player confirmed they logged into Datadog (lobby gate). Drives the
-  // "logged in" headcount on the admin page and the dej.player.logged_in metric.
+  // "logged in" headcount on the admin page and the tem.dej.player.logged_in metric.
   loggedInAt: string | null;
   // Keyed by quest id.
   progress: Record<string, QuestProgress>;

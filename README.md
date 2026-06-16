@@ -82,7 +82,7 @@ npm run dev                    # -> http://localhost:3000
 `apps/web/.env.local` に設定する主な値（すべて gitignore。詳細は `.env.example`）:
 
 - `NEXT_PUBLIC_DD_*` … control plane 自身の Browser RUM / Logs。
-- `DD_API_KEY` ＋ `DEJ_SEND_METRICS=true` … スコアを `dej.score` メトリクスとして送信。
+- `DD_API_KEY` ＋ `DEJ_SEND_METRICS=true` … スコアを `tem.dej.score` メトリクスとして送信。
 - `DD_APP_KEY` ＋ `DEJ_PROVISION_USERS=true` … 参加者の Datadog org ユーザを自動作成。
 - `DEJ_DATADOG_LOGIN_*` … 参加者がロビーで使う **共有 Datadog ログイン**（URL / メール /
   パスワード）。サーバ専用 `/api/datadog-login` 経由で配信し、ブラウザバンドルには焼き込みません。
@@ -101,7 +101,7 @@ npm run dev                    # -> http://localhost:3000
 3. **ロビー**: 参加者画面に **共有 Datadog ログイン情報** が表示されます
    （URL リンク / メール（コピー）/ パスワード（伏字・コピーのみ））。
 4. 全員が Datadog にログインしたら **「Datadog にログインしました」** を押す
-   （`dej.player.logged_in` メトリクスを送信。Admin で「ログイン済み N / M 人」を確認可能）。
+   （`tem.dej.player.logged_in` メトリクスを送信。Admin で「ログイン済み N / M 人」を確認可能）。
 5. **問題スタート**（Admin、ロビー→running）でクエストを解放。参加者画面は自動で調査画面へ。
 6. 参加者が APM で調査 → 回答送信 → スコア更新。
 7. **リーダーボード**（Web ライブ / Datadog ダッシュボード）で進捗を共有。

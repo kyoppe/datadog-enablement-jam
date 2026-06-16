@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { ja } from "@/i18n/ja";
 import LeaderboardTable from "@/components/LeaderboardTable";
 
+type SessionPhase = "lobby" | "running" | "ended";
+
 interface Session {
   id: string;
   name: string;
@@ -11,7 +13,14 @@ interface Session {
   module?: string;
   createdAt: string;
   status: "active" | "ended";
+  phase: SessionPhase;
+  startedAt: string | null;
   endedAt: string | null;
+}
+
+interface LoginStat {
+  total: number;
+  loggedIn: number;
 }
 
 interface ModuleSummary {
@@ -29,12 +38,35 @@ export default function AdminPage() {
   const [origin, setOrigin] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [logins, setLogins] = useState<Record<string, LoginStat>>({});
 
   useEffect(() => {
     setOrigin(window.location.origin);
     loadModules();
     loadSessions();
   }, []);
+
+  // Poll login headcount for the live (non-ended) session so the host can see
+  // "N / M logged in" before pressing 問題スタート.
+  useEffect(() => {
+    const live = sessions.filter((s) => s.phase !== "ended").map((s) => s.id);
+    if (live.length === 0) return;
+    const fetchStats = () => {
+      live.forEach(async (id) => {
+        try {
+          const res = await fetch(`/api/sessions/${id}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.login) setLogins((prev) => ({ ...prev, [id]: data.login }));
+        } catch {
+          // Ignore transient errors; retried on the next tick.
+        }
+      });
+    };
+    fetchStats();
+    const timer = setInterval(fetchStats, 5000);
+    return () => clearInterval(timer);
+  }, [sessions]);
 
   const hasActive = sessions.some((s) => s.status === "active");
   const moduleTitle = (id: string) =>
@@ -99,6 +131,16 @@ export default function AdminPage() {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+  }
+
+  async function startProblem(id: string) {
+    if (!window.confirm(ja.admin.confirmStart)) return;
+    await fetch(`/api/sessions/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "start" }),
+    });
+    await loadSessions();
   }
 
   async function endSession(id: string) {
@@ -183,25 +225,46 @@ export default function AdminPage() {
         sessions.map((s) => {
           const playerUrl = `${origin}/play/${s.id}`;
           const leaderboardUrl = `${origin}/leaderboard/${s.id}`;
-          const command = `make scenario SESSION=${s.id}`;
           const ended = s.status === "ended";
+          const phase = s.phase ?? (ended ? "ended" : "running");
           const moduleNames = (s.moduleIds ?? []).map(moduleTitle).join(", ");
+          const stat = logins[s.id];
+          const phaseBadge =
+            phase === "ended"
+              ? { cls: "pending", label: ja.admin.statusEnded }
+              : phase === "lobby"
+                ? { cls: "warn", label: ja.admin.statusLobby }
+                : { cls: "ok", label: ja.admin.statusRunning };
           return (
             <div className="panel" key={s.id}>
               <p>
                 <strong>{s.name}</strong>{" "}
                 <span className="mono">({s.id})</span>{" "}
-                <span className={`badge ${ended ? "pending" : "ok"}`}>
-                  {ended ? ja.admin.statusEnded : ja.admin.statusActive}
-                </span>
+                <span className={`badge ${phaseBadge.cls}`}>{phaseBadge.label}</span>
               </p>
               <p className="muted" style={{ marginTop: 0 }}>
                 {ja.admin.targetModules}: {moduleNames || "-"} ·{" "}
                 {ja.admin.createdAt}: {formatTime(s.createdAt)}
+                {s.startedAt && ` · ${ja.admin.startedAt}: ${formatTime(s.startedAt)}`}
                 {ended && s.endedAt && ` · ${ja.admin.endedAt}: ${formatTime(s.endedAt)}`}
               </p>
 
+              {phase !== "ended" && (
+                <p className="muted" style={{ marginTop: 0 }}>
+                  {ja.admin.loginProgress}: {ja.admin.loginCount}{" "}
+                  <strong>
+                    {stat ? stat.loggedIn : 0} / {stat ? stat.total : 0}
+                  </strong>{" "}
+                  {ja.admin.loginCountUnit}
+                </p>
+              )}
+
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                {phase === "lobby" && (
+                  <button onClick={() => startProblem(s.id)}>
+                    {ja.admin.startProblem}
+                  </button>
+                )}
                 {!ended && (
                   <button className="secondary" onClick={() => endSession(s.id)}>
                     {ja.admin.endSession}
@@ -212,29 +275,11 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <div className="command-block">
-                <code>{command}</code>
-                <button className="secondary" onClick={() => copy(`cmd-${s.id}`, command)}>
-                  {copiedKey === `cmd-${s.id}` ? ja.admin.copied : ja.admin.copy}
-                </button>
-              </div>
-
-              {ended && (
-                <>
-                  <p className="muted" style={{ marginBottom: 4 }}>
-                    {ja.admin.stopDataPlaneHint}
-                  </p>
-                  <div className="command-block">
-                    <code>make stop</code>
-                    <button
-                      className="secondary"
-                      onClick={() => copy(`stop-${s.id}`, "make stop")}
-                    >
-                      {copiedKey === `stop-${s.id}` ? ja.admin.copied : ja.admin.copy}
-                    </button>
-                  </div>
-                </>
-              )}
+              <p className="muted" style={{ marginTop: 0 }}>
+                {ja.admin.dataPlaneAlwaysOn}
+                <br />
+                {ja.admin.dataPlaneRunbook}
+              </p>
 
               <p style={{ marginTop: 16 }}>
                 <strong>{ja.admin.playerUrl}:</strong>{" "}

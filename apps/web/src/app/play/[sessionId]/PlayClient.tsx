@@ -20,11 +20,20 @@ export interface PublicModule {
   quests: PublicQuest[];
 }
 
+type SessionPhase = "lobby" | "running" | "ended";
+
 interface Props {
   sessionId: string;
   sessionName: string;
   ended: boolean;
+  phase: SessionPhase;
   modules: PublicModule[];
+}
+
+interface DatadogLogin {
+  url: string;
+  email: string;
+  password: string;
 }
 
 interface QuestState {
@@ -59,7 +68,13 @@ const emptyQuestState: QuestState = {
 
 const emptyAnswer: AnswerInput = { rootCause: "", resource: "", evidence: "" };
 
-export default function PlayClient({ sessionId, sessionName, ended, modules }: Props) {
+export default function PlayClient({
+  sessionId,
+  sessionName,
+  ended,
+  phase: initialPhase,
+  modules,
+}: Props) {
   const allQuests = useMemo(() => modules.flatMap((m) => m.quests), [modules]);
 
   const [email, setEmail] = useState("");
@@ -67,6 +82,10 @@ export default function PlayClient({ sessionId, sessionName, ended, modules }: P
   const [playerName, setPlayerName] = useState("");
   const [handle, setHandle] = useState("");
   const [joined, setJoined] = useState(false);
+  const [phase, setPhase] = useState<SessionPhase>(initialPhase);
+  const [login, setLogin] = useState<DatadogLogin | null>(null);
+  const [loginConfirmed, setLoginConfirmed] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(
     allQuests[0]?.id ?? null,
   );
@@ -79,6 +98,60 @@ export default function PlayClient({ sessionId, sessionName, ended, modules }: P
   useEffect(() => {
     setGameContext({ sessionId });
   }, [sessionId]);
+
+  const inLobby = joined && phase === "lobby";
+
+  // Fetch the shared Datadog login once we reach the lobby (server-only route;
+  // creds are never inlined into the bundle).
+  useEffect(() => {
+    if (!inLobby || login) return;
+    let cancelled = false;
+    fetch(`/api/datadog-login?sessionId=${encodeURIComponent(sessionId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: DatadogLogin | null) => {
+        if (!cancelled && data) setLogin(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [inLobby, login, sessionId]);
+
+  // While waiting in the lobby, poll for the host pressing "問題スタート".
+  useEffect(() => {
+    if (!inLobby) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const next = data.session?.phase as SessionPhase | undefined;
+        if (next && next !== "lobby") setPhase(next);
+      } catch {
+        // Ignore transient polling errors; we retry on the next tick.
+      }
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [inLobby, sessionId]);
+
+  function copy(key: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+  }
+
+  async function confirmLogin() {
+    setLoginConfirmed(true);
+    try {
+      await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, email: email.trim().toLowerCase() }),
+      });
+    } catch {
+      // Best-effort: the headcount metric is non-critical to gameplay.
+    }
+  }
 
   const currentQuest = allQuests.find((q) => q.id === selectedQuestId) ?? null;
   const solvedCount = Object.values(progress).filter((p) => p.solved).length;
@@ -239,6 +312,68 @@ export default function PlayClient({ sessionId, sessionName, ended, modules }: P
             {ja.player.join}
           </button>
           {message && <p className="muted">{message}</p>}
+        </div>
+      </main>
+    );
+  }
+
+  if (inLobby) {
+    return (
+      <main>
+        <h1>{sessionName}</h1>
+        <p className="subheading">
+          {ja.player.youAre}: <strong>{handle}</strong>
+        </p>
+        <div className="panel">
+          <h2>{ja.lobby.waitingTitle}</h2>
+          <p className="muted">{ja.lobby.waitingHint}</p>
+        </div>
+
+        <div className="panel">
+          <h3>{ja.lobby.credsHeading}</h3>
+          {login ? (
+            <>
+              <p>
+                <a href={login.url} target="_blank" rel="noreferrer">
+                  {ja.lobby.openDatadog}
+                </a>{" "}
+                <span className="mono">({login.url})</span>
+              </p>
+              <div className="command-block">
+                <code>
+                  {ja.lobby.emailLabel}: {login.email}
+                </code>
+                <button
+                  className="secondary"
+                  onClick={() => copy("creds-email", login.email)}
+                >
+                  {copiedKey === "creds-email" ? ja.lobby.copied : ja.lobby.copy}
+                </button>
+              </div>
+              <div className="command-block">
+                <code>
+                  {ja.lobby.passwordLabel}: ••••••••{" "}
+                  <span className="muted">{ja.lobby.passwordMasked}</span>
+                </code>
+                <button
+                  className="secondary"
+                  onClick={() => copy("creds-pw", login.password)}
+                >
+                  {copiedKey === "creds-pw" ? ja.lobby.copied : ja.lobby.copy}
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="muted">{ja.common.loading}</p>
+          )}
+
+          <div style={{ marginTop: 16 }}>
+            {loginConfirmed ? (
+              <p className="badge ok">{ja.lobby.confirmedLogin}</p>
+            ) : (
+              <button onClick={confirmLogin}>{ja.lobby.confirmLogin}</button>
+            )}
+          </div>
         </div>
       </main>
     );

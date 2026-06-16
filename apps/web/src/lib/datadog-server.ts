@@ -95,6 +95,68 @@ export async function reportPlayerScore(player: Player, sessionId: string): Prom
   }
 }
 
+// Emit a point when a player confirms they logged into Datadog. Visualize on a
+// QueryValue widget as `count_nonzero(sum:dej.player.logged_in{...} by {dej_handle})`
+// (or unique dej_handle count) to show the host "N / M logged in" live.
+export async function reportPlayerLoggedIn(
+  player: Player,
+  sessionId: string,
+): Promise<void> {
+  const series: Series[] = [
+    {
+      metric: "dej.player.logged_in",
+      type: 3,
+      points: [{ timestamp: Math.floor(Date.now() / 1000), value: 1 }],
+      tags: [
+        `env:${ENV}`,
+        `dej_session:${sessionId}`,
+        `dej_handle:${player.handle}`,
+        `dej_email:${player.email}`,
+      ],
+    },
+  ];
+
+  if (!metricsEnabled()) {
+    console.log(
+      `[dej][test] would submit dej.player.logged_in for ${player.handle} (${player.email}) — set DEJ_SEND_METRICS=true to enable`,
+    );
+    return;
+  }
+
+  try {
+    const res = await fetch(`${apiBase()}/api/v2/series`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "DD-API-KEY": API_KEY as string,
+      },
+      body: JSON.stringify({ series }),
+    });
+    if (!res.ok) {
+      console.error(`[dej] logged_in metric submit failed: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error("[dej] logged_in metric submit error", err);
+  }
+}
+
+// Shared, read-only Datadog login shown to players in the lobby. Server-only:
+// returned via an API route, never inlined into the browser bundle and never
+// committed (lives in .env.local). Returns null when not configured.
+export interface DatadogLogin {
+  url: string;
+  email: string;
+  password: string;
+}
+
+export function getDatadogLogin(): DatadogLogin | null {
+  const url = process.env.DEJ_DATADOG_LOGIN_URL;
+  const email = process.env.DEJ_DATADOG_LOGIN_EMAIL;
+  const password = process.env.DEJ_DATADOG_LOGIN_PASSWORD;
+  if (!url || !email || !password) return null;
+  return { url, email, password };
+}
+
 export interface ProvisionResult {
   provisioned: boolean;
   testMode: boolean;

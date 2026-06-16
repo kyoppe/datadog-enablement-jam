@@ -39,12 +39,24 @@ export const ja = {
     leaderboardHeading: "リーダーボード (ライブ)",
     statusActive: "開催中",
     statusEnded: "終了",
+    statusLobby: "ロビー (待機中)",
+    statusRunning: "問題進行中",
+    startProblem: "問題スタート",
+    confirmStart: "問題を開始しますか? 参加者の画面にクエストが表示されます。",
+    startedAt: "開始日時",
+    loginProgress: "Datadog ログイン状況",
+    loginCount: "ログイン済み",
+    loginCountUnit: "人",
     endSession: "セッションを終了",
     deleteSession: "削除",
     confirmEnd: "このセッションを終了しますか? 参加者は回答できなくなります (リーダーボードは残ります)。",
     confirmDelete: "このセッションと参加者データを完全に削除しますか? 元に戻せません。",
     stopDataPlaneHint:
       "データプレーン (Docker) は別途停止してください。プロジェクト直下で次を実行:",
+    dataPlaneAlwaysOn:
+      "データプレーン (Storedog + Locust) は EC2 上で常時稼働しています。セッションごとの起動コマンドは不要です。",
+    dataPlaneRunbook:
+      "起動・停止・調整の手順は docs/data-plane.md の runbook (§7) を参照してください。",
     endedAt: "終了日時",
   },
 
@@ -71,6 +83,23 @@ export const ja = {
     submitAnswer: "回答を送信",
     showHint: "ヒントを見る",
     hintsHeading: "ヒント",
+  },
+
+  lobby: {
+    heading: "ロビー",
+    waitingTitle: "問題スタートをお待ちください",
+    waitingHint:
+      "まずは下のアカウントで Datadog にログインしてください。準備ができたら「Datadog にログインしました」を押してください。全員が揃ったら司会が問題を開始します。",
+    credsHeading: "Datadog ログイン情報 (共有アカウント)",
+    openDatadog: "Datadog を開く",
+    emailLabel: "メールアドレス",
+    passwordLabel: "パスワード",
+    passwordMasked: "（コピーボタンから取得してください）",
+    copy: "コピー",
+    copied: "コピーしました",
+    confirmLogin: "Datadog にログインしました",
+    confirmedLogin: "ログイン確認済み ✓",
+    startedNotice: "問題が開始されました。読み込み中...",
   },
 
   leaderboard: {

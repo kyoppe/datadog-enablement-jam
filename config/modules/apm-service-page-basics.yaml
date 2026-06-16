@@ -28,5 +28,7 @@ learning_objectives:
 quests:
   - apm-slow-checkout
 
-# Default scenario used to generate telemetry for this module.
-default_scenario: apm-slow-checkout-inventory
+# Telemetry is provided by the always-on Storedog + Locust data plane on EC2
+# (see docs/data-plane.md). There is no per-session scenario to launch; the
+# `scenario` concept is legacy (Phase 0). Kept as a label only.
+default_scenario: storedog-home-discounts-nplus1

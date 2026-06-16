@@ -2,6 +2,14 @@
 
 export type SessionStatus = "active" | "ended";
 
+// Lifecycle stage of a session:
+//   lobby   = created; players register and log into Datadog. Quests hidden.
+//   running = the host pressed "問題スタート"; quests are revealed.
+//   ended   = closed; no more joins/submissions (leaderboard stays readable).
+// `status` is kept (active/ended) for backward compatibility and is derived
+// from `phase` (active while lobby|running).
+export type SessionPhase = "lobby" | "running" | "ended";
+
 export interface Session {
   id: string;
   name: string;
@@ -12,6 +20,10 @@ export interface Session {
   createdAt: string;
   // Sessions created before this field default to "active" at read time.
   status: SessionStatus;
+  // Sessions created before phases existed are backfilled to "running".
+  phase: SessionPhase;
+  // When the host started the problem (phase -> running).
+  startedAt: string | null;
   endedAt: string | null;
 }
 
@@ -57,6 +69,9 @@ export interface Player {
   // Whether a Datadog org user has been provisioned for this player.
   provisioned: boolean;
   joinedAt: string;
+  // When the player confirmed they logged into Datadog (lobby gate). Drives the
+  // "logged in" headcount on the admin page and the dej.player.logged_in metric.
+  loggedInAt: string | null;
   // Keyed by quest id.
   progress: Record<string, QuestProgress>;
 }

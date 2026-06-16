@@ -56,6 +56,7 @@ export default async function PlayPage({
       sessionId={sessionId}
       sessionName={session.name}
       ended={session.status === "ended"}
+      phase={session.phase}
       modules={modules}
     />
   );

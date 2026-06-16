@@ -2,120 +2,121 @@
 
 Datadog のイネーブルメント研修を、ゲーム化されたハンズオン演習に変えるための MVP です。
 
-> **データプレーンに関する注記（重要）**
-> 現役のデータプレーンは **Storedog（ecommerce-workshop）+ Locust を EC2 上で常時稼働**させる構成に
-> 移行しました。実装・運用は [`docs/data-plane.md`](docs/data-plane.md) を参照してください。
-> 本 README の以降に出てくる **demo-app ベースのデータプレーン**（`make scenario` /
-> FastAPI サービス群 / `inventory-service` を遅くするシナリオ）は当初の参考実装で、
-> [`legacy/`](legacy/) に退避済みです。README 本文の全面改訂と quest との整合は
-> [`docs/ROADMAP.md`](docs/ROADMAP.md) で ToDo 管理しています。
-
 DEJ は単独の CTF ではありません。短いイネーブルメントの説明の **直後** に、学んだ
 Datadog のワークフローを **実際の Datadog 環境** で適用するハンズオン課題を解く、という
 学習体験を提供します。
 
 > この MVP は 3 日間ハッカソン用の「縦切り (vertical slice)」です。完成度よりも、
-> 「管理者がセッション開始 → APM テレメトリ生成 → 参加者が Datadog で調査 →
-> 回答送信 → スコア更新 → リーダーボード更新」の一連の流れが動くことを優先します。
+> 「管理者がセッション開始 → 参加者がロビーで Datadog にログイン → 問題スタート →
+> 参加者が APM で調査 → 回答送信 → スコア更新 → リーダーボード更新」の一連の流れが
+> 動くことを優先します。
+
+---
+
+## システム構成（control plane / data plane）
+
+DEJ は **control plane（ゲームアプリ）** と **data plane（テレメトリ源）** を分離しています。
+
+```
+        Control Plane (DEJ web app / Next.js)        Data Plane (always-on on EC2)
+        +------------------------------+         +-------------------------------------+
+        |  Admin UI（セッション運営）  |         |  Locust (traffic-generator)         |
+        |  Player UI（ロビー/調査/回答）|         |     | 合成トラフィック             |
+        |  Leaderboard UI              |         |     v                               |
+        |  Session / Quest / Scoring   |         |  nginx -> store-frontend (Rails)    |
+        |  Next.js + local JSON store  |         |     -> discounts-service (N+1, 遅い)|
+        |                              |         |     -> ads-service (sleep, 遅い)    |
+        |  (RUM/Logs + score metrics)  | ──────► |  postgres                           |
+        +------------------------------+ Datadog |  datadog-agent (APM/Logs/Process)   |
+                  参加者は Datadog で調査         +-------------------------------------+
+                                                                |
+                                                                v
+                                                       Datadog (env:dej)
+```
+
+- **Control plane**: DEJ Web アプリ (Next.js)。セッション運営（ロビー→問題スタート→終了）、
+  クエスト表示、回答送信、ヒント、スコア計算、リーダーボードを担当。MVP ではローカル JSON
+  ファイル (`apps/web/data/store.json`) に状態を保存。
+- **Data plane**: **Storedog（ecommerce-workshop）+ Locust** を **EC2 上で常時稼働**。
+  Datadog Agent が APM / Logs / Process を収集し、`env:dej` のテレメトリを送信し続けます。
+  セッションごとに起動する必要はありません（実装・運用は [`docs/data-plane.md`](docs/data-plane.md)）。
+
+> **データプレーンの履歴（重要）**
+> 当初の **demo-app ベースのデータプレーン**（`make scenario` / 自前 FastAPI サービス群 /
+> `inventory-service` を遅くするシナリオ）は参考実装で、[`legacy/`](legacy/) に退避済みです。
+> 現役は Storedog + Locust on EC2 です。フェーズ整理は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ---
 
 ## MVP スコープ
 
-- 対象モジュールは **APM Service Page Basics** のみ。
+- 対象モジュール: **APM Service Page Basics**。
 - APM 調査は **Trace Search ではなく APM Service Page** を起点にする。
 - 教える調査導線:
   `APM Service Page -> RED metrics -> Resource breakdown -> downstream dependency / trace sample -> root cause service`
-- 初期シナリオ: `checkout-service` のレイテンシ悪化。原因は `inventory-service` が遅いこと。
+- 現役クエスト: **store-frontend のトップページが遅い**。原因は下流の
+  **`discounts-service`**（トップページの N+1 クエリ）。
 - 期待する回答:
-  - 原因サービス (`root_cause_service`): `inventory-service`
-  - 影響を受ける Resource (`affected_resource`): `POST /api/checkout/confirm`
+  - 原因サービス (`root_cause_service`): `discounts-service`
+  - 影響を受ける Resource (`affected_resource`): `Spree::HomeController#index`
+
+> 参考: product 詳細ページ（`Spree::ProductsController#show`）の遅延は `ads-service` の
+> sleep が原因。`GET 500` 系はテンプレートレンダリングのエラー。今後クエストを追加する
+> 際の素材になります。
 
 ---
 
-## アーキテクチャ
+## ローカルでの実行手順（control plane のみ）
 
-Control plane / data plane を分離しています。
+データプレーンは EC2 で常時稼働しているため、ローカルで起動するのは control plane だけです。
 
-```
-            Control Plane (DEJ web app)                 Data Plane (telemetry)
-        +------------------------------+            +---------------------------------+
-        |  Admin UI                    |            |  traffic-generator              |
-        |  Player UI                   |   tags     |     |                           |
-        |  Leaderboard UI              |  dej_*     |     v                           |
-        |  Session / Quest / Scoring   | ---------> |  frontend -> checkout --+--> payment   |
-        |  (Next.js, local JSON store) |            |                          \--> inventory |
-        +------------------------------+            |             (inventory is slow) |
-                                                    |  datadog-agent (APM enabled)    |
-                                                    +---------------------------------+
-                                                                  |
-                                                                  v
-                                                              Datadog APM
+前提: Node.js 18+。
+
+```bash
+cd datadog-enablement-jam/apps/web
+cp .env.example .env.local     # 値を設定（下記参照）
+npm install
+npm run dev                    # -> http://localhost:3000
 ```
 
-- **Control plane**: DEJ Web アプリ (Next.js)。セッション作成、クエスト表示、回答送信、
-  ヒント、スコア計算、リーダーボードを担当。MVP ではローカル JSON ファイルに状態を保存。
-  将来は Cloudflare Pages/pages.dev へ移行可能な構造。
-- **Data plane**: Docker Compose。Datadog Agent + FastAPI デモサービス群 + traffic-generator。
-  全サービスに session-scoped タグ (`dej_session` / `dej_module` / `dej_scenario`) を付与。
-  ローカルで動き、`.env` を変えるだけで EC2 へ移行しやすい構造。
+`apps/web/.env.local` に設定する主な値（すべて gitignore。詳細は `.env.example`）:
 
-詳細は [`docs/architecture.md`](docs/architecture.md) を参照してください。
+- `NEXT_PUBLIC_DD_*` … control plane 自身の Browser RUM / Logs。
+- `DD_API_KEY` ＋ `DEJ_SEND_METRICS=true` … スコアを `dej.score` メトリクスとして送信。
+- `DD_APP_KEY` ＋ `DEJ_PROVISION_USERS=true` … 参加者の Datadog org ユーザを自動作成。
+- `DEJ_DATADOG_LOGIN_*` … 参加者がロビーで使う **共有 Datadog ログイン**（URL / メール /
+  パスワード）。サーバ専用 `/api/datadog-login` 経由で配信し、ブラウザバンドルには焼き込みません。
+
+> 既定はテストモード（`DEJ_SEND_METRICS=false` / `DEJ_PROVISION_USERS=false`）で、
+> 実際の送信・ユーザ作成はせずログ出力のみ行います。
 
 ---
 
-## ローカルでの実行手順
+## セッションの進行（ロビー → 問題スタート → 終了）
 
-前提: Node.js 18+ と Docker / Docker Compose、Datadog の API キー。
+司会オペレーションの流れ:
 
-```bash
-cd datadog-enablement-jam
-cp .env.example .env
-# .env を編集して DD_API_KEY と DD_SITE を設定
-make setup        # web の依存をインストールし、必要なら .env を作成
-make web          # DEJ control plane (Next.js) を起動 -> http://localhost:3000
-```
-
-### セッションを作成する
-
-1. ブラウザで管理画面 `http://localhost:3000/admin` を開く。
-2. 「新しいセッションを開始」を押す。
-3. 表示された **セッション ID** を控える。
-4. 表示された **データ生成を開始するコマンド** を控える。
-5. 参加者用 URL とリーダーボード URL のリンクを共有する。
-
-### シナリオ (データプレーン) を起動する
-
-別ターミナルで、管理画面に表示されたコマンドを実行します。
-
-```bash
-make scenario SESSION=<session_id>
-```
-
-これで Docker Compose が起動し、`dej_session:<session_id>` タグ付きの APM テレメトリが
-Datadog に送信され始めます。
-
-停止・リセット・ログ確認:
-
-```bash
-make stop     # データプレーンを停止
-make reset    # コンテナ/ボリュームを削除
-make logs     # ログを tail
-```
+1. **モジュール選択 + セッション開始**（`/admin`）。セッションは **ロビー** 状態で作成されます。
+2. **参加者用 URL** を共有。参加者は氏名・メールを登録します。
+3. **ロビー**: 参加者画面に **共有 Datadog ログイン情報** が表示されます
+   （URL リンク / メール（コピー）/ パスワード（伏字・コピーのみ））。
+4. 全員が Datadog にログインしたら **「Datadog にログインしました」** を押す
+   （`dej.player.logged_in` メトリクスを送信。Admin で「ログイン済み N / M 人」を確認可能）。
+5. **問題スタート**（Admin、ロビー→running）でクエストを解放。参加者画面は自動で調査画面へ。
+6. 参加者が APM で調査 → 回答送信 → スコア更新。
+7. **リーダーボード**（Web ライブ / Datadog ダッシュボード）で進捗を共有。
+8. **セッション終了**（Admin、running→ended）。回答は締め切られ、リーダーボードは残ります。
 
 ---
 
-## Datadog での調査方法
+## Datadog での調査方法（現役クエスト）
 
-参加者は次の導線で調査します。
-
-1. Datadog APM を開き、`checkout-service` の **Service Page** を開く。
-   - `env:dej` および `dej_session:<session_id>` で絞り込むと該当セッションのデータが見えます。
-2. **RED metrics** (Requests / Errors / Duration) でレイテンシ悪化を確認する。
-3. **Resource breakdown** でレイテンシが高い Resource を探す。
-   - 該当: `POST /api/checkout/confirm`
+1. Datadog APM で **`store-frontend`** の **Service Page** を開く（`env:dej` で絞り込み）。
+2. **RED metrics**（Requests / Errors / Duration）でレイテンシ悪化を確認する。
+3. **Resource breakdown** で最も遅い Resource を探す。
+   - 該当: `Spree::HomeController#index`（トップページ、p95 が最大）
 4. その Resource の **Trace Sample** を開き、下流サービスの **Span Duration** を比較する。
-5. 遅い下流サービス = **`inventory-service`** を特定する。
+5. 遅い下流サービス = **`discounts-service`**（`GET /discount` の N+1）を特定する。
 
 ---
 
@@ -123,9 +124,11 @@ make logs     # ログを tail
 
 | フィールド | 期待値 |
 |---|---|
-| 原因となっている下流サービス | `inventory-service` |
-| 影響を受けている Resource / Endpoint | `POST /api/checkout/confirm` |
+| 原因となっている下流サービス | `discounts-service` |
+| 影響を受けている Resource / Endpoint | `Spree::HomeController#index` |
 | 根拠となる Datadog URL | 任意 |
+
+回答の一致判定は **大文字小文字を無視 / 前後空白をトリム** した完全一致です（`scoring.ts`）。
 
 ---
 
@@ -136,34 +139,43 @@ make logs     # ログを tail
 | 原因サービス正解 | +300 |
 | 影響 Resource 正解 | +200 |
 | 根拠 URL 提出 | +100 |
-| 最大スコア | 600 |
-| 誤答ペナルティ | -20 |
-| ヒント 1 | -50 |
-| ヒント 2 | -100 |
-| ヒント 3 | -150 |
+| 基本最大 | 600 |
+| スピードボーナス | 最大 +200（参加から 900 秒で線形に 0 へ減衰。解答時に 1 回） |
+| 合計最大 (`max_score`) | 800 |
+| 誤答 | **減点なし（カウントのみ）** |
+| ヒント 1 / 2 / 3 | -50 / -100 / -150 |
 
-スコアの定義は [`config/quests/apm-slow-checkout.yaml`](config/quests/apm-slow-checkout.yaml)
-に集約されており、UI にハードコードしていません。
+- **誤答ペナルティはありません**。誤答は回数としてカウントされるだけで、スコアは下がりません
+  （CTF スタイル）。表示・順位スコアは 0 未満にならないよう 0 で下限処理されます。
+- 各正解要素は **1 回だけ** 加点されます。
+- スコアの定義は [`config/quests/apm-slow-checkout.yaml`](config/quests/apm-slow-checkout.yaml)
+  に集約されており、UI にハードコードしていません。
 
 ---
 
-## 将来の移行 (pages.dev + EC2)
+## Datadog Org について（現状と将来）
 
-- **Control plane** は Cloudflare Pages/pages.dev でホストする。
-- **Data plane** は EC2 でホストする (runner + デモコンテナ + traffic-generator + Datadog Agent)。
-- EC2 上の **runner** が control plane API をポーリングして pending なセッションを起動する。
-  pages.dev が直接 Docker を制御することはありません。
-- EC2 の通信要件:
-  - 送信: pages.dev / Datadog intake
-  - 受信: 最小限 (理想は SSH のみ)
+- 現在は **`kyouhei.datadoghq.com`** を使用しています（MVP 用の共有ユーザ
+  `tem-japan+dej@datadoghq.com` で参加者がログイン）。
+- 将来 **`dej`** または **`enablement-jam`** などの専用 Org を取得したら、そちらへ移行します。
+  移行時は `apps/web/.env.local` の `DEJ_DATADOG_LOGIN_*` / `DD_SITE` / `DD_API_KEY` と、
+  data plane 側の Agent 設定・タグ（`env:dej` など）を新 Org に合わせて差し替えます。
 
-詳細な移行方針は [`docs/architecture.md`](docs/architecture.md) を参照してください。
+---
+
+## 国際化（i18n）について
+
+- 現状、UI 文言は日本語のみで [`apps/web/src/i18n/ja.ts`](apps/web/src/i18n/ja.ts) に集約しています。
+- **将来的に英語化を予定**しています（`en` ロケールを追加し、`ja.ts` と同じキー構造で切替）。
+  文言を散在させず i18n ファイルに集約しているのはこのためです。
 
 ---
 
 ## ドキュメント
 
+- [`docs/data-plane.md`](docs/data-plane.md) - 現役データプレーン（Storedog + Locust on EC2）の実装・運用 runbook
 - [`docs/architecture.md`](docs/architecture.md) - アーキテクチャと移行方針
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) - フェーズ整理 + 未決 ToDo
 - [`docs/hackathon-plan.md`](docs/hackathon-plan.md) - 3 日間の進め方
 
 ---

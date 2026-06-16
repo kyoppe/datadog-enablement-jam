@@ -159,6 +159,11 @@ th {
   color: var(--muted);
 }
 
+.badge.warn {
+  background: rgba(230, 184, 0, 0.15);
+  color: var(--warn);
+}
+
 .feedback {
   margin-top: 14px;
   padding: 12px 14px;

@@ -47,6 +47,8 @@ export async function POST(request: Request) {
     module: moduleIds[0],
     createdAt: new Date().toISOString(),
     status: "active",
+    phase: "lobby",
+    startedAt: null,
     endedAt: null,
   };
   createSession(session);

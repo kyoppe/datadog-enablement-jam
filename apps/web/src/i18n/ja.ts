@@ -26,6 +26,8 @@ export const ja = {
       "開催中のセッションがあります。新規作成するには現在のセッションを終了してください (同時に1セッションのみ運用できます)。",
     playerUrl: "参加者用 URL",
     leaderboardUrl: "リーダーボード URL",
+    dashboardUrl: "DEJ ダッシュボード",
+    openDashboard: "DEJ ダッシュボードを開く",
     scenarioCommandLabel: "データ生成を開始するコマンド",
     scenarioCommandHint: "以下のコマンドをローカルまたは EC2 上で実行してください",
     copy: "コピー",

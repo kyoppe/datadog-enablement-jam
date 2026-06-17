@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ja } from "@/i18n/ja";
+import { dejDashboardUrl } from "@/lib/dashboard";
 
 type SessionPhase = "lobby" | "running" | "ended";
 
@@ -133,6 +134,16 @@ export default function SessionConsole({
           </div>
         </div>
       </div>
+
+      <p style={{ marginTop: 4 }}>
+        <a
+          href={dejDashboardUrl(session.id)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {ja.admin.openDashboard} →
+        </a>
+      </p>
 
       {phase === "lobby" && (
         <>

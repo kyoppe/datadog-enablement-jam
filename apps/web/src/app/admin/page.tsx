@@ -7,6 +7,7 @@ import LeaderboardTable from "@/components/LeaderboardTable";
 import SessionConsole from "@/components/SessionConsole";
 import Podium from "@/components/Podium";
 import { copyText } from "@/lib/clipboard";
+import { dejDashboardUrl } from "@/lib/dashboard";
 
 type SessionPhase = "lobby" | "running" | "ended";
 
@@ -376,6 +377,12 @@ export default function AdminPage() {
                 <Link className="mono" href={`/admin/${s.id}`}>
                   {ja.admin.consoleOpen} →
                 </Link>
+              </p>
+              <p>
+                <strong>{ja.admin.dashboardUrl}:</strong>{" "}
+                <a href={dejDashboardUrl(s.id)} target="_blank" rel="noreferrer">
+                  {ja.admin.openDashboard}
+                </a>
               </p>
 
               {ended && <Podium sessionId={s.id} />}

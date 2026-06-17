@@ -1,23 +1,42 @@
 // Scoring logic for DEJ. Driven entirely by the quest config so points,
 // penalties, and answers can change without touching code. Scoring is per-quest;
 // the leaderboard aggregates each player's quest scores.
-import type { Quest, Player, QuestProgress } from "./types";
+import type { Quest, QuestAnswerField, Player, QuestProgress } from "./types";
 
 function normalize(value: string | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
-export interface SubmissionInput {
-  rootCauseService?: string;
-  affectedResource?: string;
-  evidenceUrl?: string;
+// Whether a submitted value matches the field's expected answer.
+// - text: case-insensitive, trimmed equality.
+// - multi_choice: the submitted value is a comma-separated list of selected
+//   option values; it must equal the expected set (order-independent).
+function fieldMatches(field: QuestAnswerField, value: string | undefined): boolean {
+  if (field.type === "multi_choice") {
+    const expected = (Array.isArray(field.expected) ? field.expected : [field.expected])
+      .map(normalize)
+      .filter(Boolean)
+      .sort();
+    const got = (value ?? "")
+      .split(",")
+      .map(normalize)
+      .filter(Boolean)
+      .sort();
+    return (
+      expected.length === got.length && expected.every((v, i) => v === got[i])
+    );
+  }
+  const expected = Array.isArray(field.expected) ? field.expected[0] : field.expected;
+  return normalize(value) === normalize(expected);
 }
+
+// Raw answers keyed by quest answer-field key.
+export type SubmissionInput = Record<string, string>;
 
 export interface ScoreResult {
   progress: QuestProgress;
-  correctRootCause: boolean;
-  correctResource: boolean;
-  evidenceProvided: boolean;
+  // Correctness of each field in this submission, keyed by field key.
+  correct: Record<string, boolean>;
   gained: number;
   speedBonus: number;
   // Verdict key maps to i18n score messages.
@@ -106,58 +125,58 @@ function computeSpeedBonus(quest: Quest, startedAt: string, solvedAt: string): n
   return Math.round(cfg.max * ratio);
 }
 
+// Whether a given field has ever been answered correctly across submissions.
+function fieldEverCorrect(progress: QuestProgress, key: string): boolean {
+  return progress.submissions.some((s) => s.correct?.[key]);
+}
+
 // Apply a submission to a quest's progress and return the updated progress +
-// verdict. CTF-style: correct fields add points once; wrong answers never
-// subtract (they are only counted). A speed bonus is granted on the first solve.
+// verdict. CTF-style: each correct field adds its points once; wrong answers
+// never subtract (they are only counted). `solved` requires every required
+// field to have been answered correctly (across history). A speed bonus is
+// granted on the first full solve.
 export function applySubmission(
   progress: QuestProgress,
   quest: Quest,
   input: SubmissionInput,
 ): ScoreResult {
-  const correctRootCause =
-    normalize(input.rootCauseService) === normalize(quest.expected.root_cause_service);
-  const correctResource =
-    normalize(input.affectedResource) === normalize(quest.expected.affected_resource);
-  const evidenceProvided = normalize(input.evidenceUrl).length > 0;
+  const fields = quest.answer_fields;
 
-  // Award each component at most once.
-  const alreadyRootCause = progress.submissions.some((s) => s.correctRootCause);
-  const alreadyResource = progress.submissions.some((s) => s.correctResource);
-  const alreadyEvidence = progress.submissions.some(
-    (s) => normalize(s.evidenceUrl).length > 0,
-  );
+  const correct: Record<string, boolean> = {};
+  for (const f of fields) {
+    correct[f.key] = fieldMatches(f, input[f.key]);
+  }
 
+  // Award each field's points at most once (first time it is correct).
   let gained = 0;
-  if (correctRootCause && !alreadyRootCause) {
-    gained += quest.scoring.points.root_cause_service;
-  }
-  if (correctResource && !alreadyResource) {
-    gained += quest.scoring.points.affected_resource;
-  }
-  if (evidenceProvided && !alreadyEvidence) {
-    gained += quest.scoring.points.evidence_url;
+  for (const f of fields) {
+    if (correct[f.key] && !fieldEverCorrect(progress, f.key)) {
+      gained += f.points;
+    }
   }
 
   // Wrong answers are counted but never penalize the score.
-  const anyCorrectNow = correctRootCause || correctResource;
+  const anyCorrectNow = fields.some((f) => correct[f.key]);
   if (!anyCorrectNow) {
     progress.wrongAnswers += 1;
   }
 
   progress.lastSubmissionAt = new Date().toISOString();
+  const answers: Record<string, string> = {};
+  for (const f of fields) answers[f.key] = input[f.key] ?? "";
   progress.submissions.push({
-    rootCauseService: input.rootCauseService,
-    affectedResource: input.affectedResource,
-    evidenceUrl: input.evidenceUrl,
     at: progress.lastSubmissionAt,
-    correctRootCause,
-    correctResource,
+    answers,
+    correct,
   });
 
+  // Solved once every required field has been answered correctly at some point.
   const wasSolved = progress.solved;
-  progress.solved = correctRootCause || alreadyRootCause;
+  progress.solved = fields
+    .filter((f) => f.required)
+    .every((f) => fieldEverCorrect(progress, f.key));
 
-  // Speed bonus on the first solve only.
+  // Speed bonus on the first full solve only.
   let speedBonus = 0;
   if (progress.solved && !wasSolved) {
     progress.solvedAt = progress.lastSubmissionAt;
@@ -168,19 +187,12 @@ export function applySubmission(
 
   progress.score += gained;
 
+  const correctCount = fields.filter((f) => correct[f.key]).length;
   let verdict: ScoreResult["verdict"] = "incorrect";
-  if (correctRootCause && correctResource) verdict = "correct";
-  else if (correctRootCause || correctResource) verdict = "partiallyCorrect";
+  if (fields.length > 0 && correctCount === fields.length) verdict = "correct";
+  else if (correctCount > 0) verdict = "partiallyCorrect";
 
-  return {
-    progress,
-    correctRootCause,
-    correctResource,
-    evidenceProvided,
-    gained,
-    speedBonus,
-    verdict,
-  };
+  return { progress, correct, gained, speedBonus, verdict };
 }
 
 // Reveal a hint, applying its penalty once. The raw score may go negative;

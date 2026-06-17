@@ -42,15 +42,14 @@ interface Series {
 }
 
 // Submit per-quest scores as a single gauge metric. The total is derived in the
-// dashboard via sum by {dej_handle}. env and session tags are always included so
+// dashboard via sum by {dej_player}. env and session tags are always included so
 // the leaderboard dashboard can be sliced reliably; dej_module / dej_quest allow
 // "which domain is the player strong in" analysis.
 export async function reportPlayerScore(player: Player, sessionId: string): Promise<void> {
   const baseTags = [
     `env:${ENV}`,
     `dej_session:${sessionId}`,
-    `dej_handle:${player.handle}`,
-    `dej_email:${player.email}`,
+    `dej_player:${player.name}`,
   ];
   const now = Math.floor(Date.now() / 1000);
 
@@ -73,7 +72,7 @@ export async function reportPlayerScore(player: Player, sessionId: string): Prom
 
   if (!metricsEnabled()) {
     console.log(
-      `[dej][test] would submit ${series.length} tem.dej.score points for ${player.handle} (${player.email}) — set DEJ_SEND_METRICS=true to enable`,
+      `[dej][test] would submit ${series.length} tem.dej.score points for ${player.name} — set DEJ_SEND_METRICS=true to enable`,
     );
     return;
   }
@@ -96,8 +95,8 @@ export async function reportPlayerScore(player: Player, sessionId: string): Prom
 }
 
 // Emit a point when a player confirms they logged into Datadog. Visualize on a
-// QueryValue widget as `count_nonzero(sum:tem.dej.player.logged_in{...} by {dej_handle})`
-// (or unique dej_handle count) to show the host "N / M logged in" live.
+// QueryValue widget as `count_nonzero(sum:tem.dej.player.logged_in{...} by {dej_player})`
+// (or unique dej_player count) to show the host "N / M logged in" live.
 export async function reportPlayerLoggedIn(
   player: Player,
   sessionId: string,
@@ -110,15 +109,14 @@ export async function reportPlayerLoggedIn(
       tags: [
         `env:${ENV}`,
         `dej_session:${sessionId}`,
-        `dej_handle:${player.handle}`,
-        `dej_email:${player.email}`,
+        `dej_player:${player.name}`,
       ],
     },
   ];
 
   if (!metricsEnabled()) {
     console.log(
-      `[dej][test] would submit tem.dej.player.logged_in for ${player.handle} (${player.email}) — set DEJ_SEND_METRICS=true to enable`,
+      `[dej][test] would submit tem.dej.player.logged_in for ${player.name} — set DEJ_SEND_METRICS=true to enable`,
     );
     return;
   }

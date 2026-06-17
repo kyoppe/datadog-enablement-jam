@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ja } from "@/i18n/ja";
 
 export interface LeaderboardRow {
-  handle: string;
+  name: string;
   score: number;
   solvedCount: number;
   totalQuests: number;
@@ -14,6 +14,7 @@ export interface LeaderboardRow {
   speedBonus: number;
   solvedAt: string | null;
   lastSubmissionAt: string | null;
+  finishedAt: string | null;
 }
 
 function formatTime(iso: string | null): string {
@@ -60,14 +61,15 @@ export default function LeaderboardTable({ sessionId }: { sessionId: string }) {
           <th>{ja.leaderboard.status}</th>
           <th>{ja.leaderboard.hintsUsed}</th>
           <th>{ja.leaderboard.wrongAnswers}</th>
+          <th>{ja.leaderboard.finished}</th>
           <th>{ja.leaderboard.lastSubmission}</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={r.handle}>
+          <tr key={r.name}>
             <td>{i + 1}</td>
-            <td>{r.handle}</td>
+            <td>{r.name}</td>
             <td>
               <strong>{r.score}</strong>
               {r.speedBonus > 0 && (
@@ -84,6 +86,15 @@ export default function LeaderboardTable({ sessionId }: { sessionId: string }) {
             </td>
             <td>{r.hintsUsed}</td>
             <td>{r.wrongAnswers}</td>
+            <td>
+              {r.finishedAt ? (
+                <span className="badge ok" title={formatTime(r.finishedAt)}>
+                  {ja.leaderboard.finishedYes}
+                </span>
+              ) : (
+                <span className="muted">-</span>
+              )}
+            </td>
             <td>{formatTime(r.lastSubmissionAt)}</td>
           </tr>
         ))}

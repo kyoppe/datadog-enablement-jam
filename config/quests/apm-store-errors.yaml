@@ -1,0 +1,74 @@
+# DEJ quest definition (source of truth for player UI copy and scoring).
+# UI-facing copy is Japanese; identifiers and config keys stay English.
+#
+# Narrative arc, quest 2 of 4: investigate the errors surfaced in the triage
+# quest. Confirmed from APM (env:dej): the dominant store-frontend error is
+# ActionView::Template::Error on the resource spree/shared/_head.html.erb (a
+# shared partial rendered on most pages). The error originates in store-frontend
+# itself (NOT a downstream dependency). Telemetry: always-on Storedog + Locust
+# data plane on EC2 (see docs/data-plane.md).
+id: apm-store-errors
+module: apm-troubleshoot-workflow
+scenario: storedog-frontend-template-errors
+
+title: Template Rendering Errors Investigation
+display_title: エラーの調査
+
+# Symptom only: do not reveal the error type / resource / origin (those are the
+# answers). Hints reveal them progressively.
+description: >-
+  トリアージで見つけたエラーを掘り下げます。store-frontend の Error Tracking
+  （または status:error のトレース）を開き、最も多く発生しているエラーについて、
+  その種別・発生箇所・発生元のサービスを特定してください。
+
+# Pre-filtered Datadog deep link: Error Tracking, service:store-frontend env:dej.
+datadog_path: /apm/error-tracking?query=service%3Astore-frontend%20env%3Adej
+
+starting_point: >-
+  「Error Tracking を開く」リンク（store-frontend / env:dej で絞り込み済み）を開き、
+  発生件数が最も多いエラーから確認してください。
+
+answer_fields:
+  - key: error_type
+    prompt: 最も発生件数が多いエラーの種別（Error Type）は何ですか？
+    label: エラー種別
+    expected: ActionView::Template::Error
+    points: 200
+    required: true
+  - key: error_resource
+    prompt: そのエラーが発生している Resource（テンプレート）はどれですか？
+    label: 発生箇所 (Resource / テンプレート)
+    expected: spree/shared/_head.html.erb
+    points: 300
+    required: true
+  - key: error_service
+    prompt: このエラーの発生元は、下流依存ですか、それとも store-frontend 自身ですか？発生元のサービス名を答えてください。
+    label: 発生元のサービス
+    expected: store-frontend
+    points: 100
+    required: true
+
+scoring:
+  # Sum of field points (600) + speed_bonus.max (200). Floored at 0 for display.
+  max_score: 800
+  hint_penalties:
+    - -50
+    - -100
+    - -150
+  speed_bonus:
+    max: 200
+    window_seconds: 900
+
+hints:
+  - label: ヒント 1
+    text: >-
+      store-frontend の APM Service Page でエラー率の上昇を確認し、Error Tracking で
+      発生件数の多いエラーから見てください。
+  - label: ヒント 2
+    text: >-
+      最も多いエラー種別は ActionView::Template::Error（テンプレート描画エラー）です。
+      どの Resource で発生しているかを確認してください。
+  - label: ヒント 3
+    text: >-
+      エラーは共有パーシャル spree/shared/_head.html.erb の描画で発生しています。
+      下流サービスではなく store-frontend 自身のエラーです。

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ja } from "@/i18n/ja";
 import LeaderboardTable from "@/components/LeaderboardTable";
+import { copyText } from "@/lib/clipboard";
 
 type SessionPhase = "lobby" | "running" | "ended";
 
@@ -127,8 +128,8 @@ export default function AdminPage() {
     }
   }
 
-  function copy(key: string, text: string) {
-    navigator.clipboard.writeText(text);
+  async function copy(key: string, text: string) {
+    await copyText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
   }
@@ -249,15 +250,34 @@ export default function AdminPage() {
                 {ended && s.endedAt && ` · ${ja.admin.endedAt}: ${formatTime(s.endedAt)}`}
               </p>
 
-              {phase !== "ended" && (
-                <p className="muted" style={{ marginTop: 0 }}>
-                  {ja.admin.loginProgress}: {ja.admin.loginCount}{" "}
-                  <strong>
-                    {stat ? stat.loggedIn : 0} / {stat ? stat.total : 0}
-                  </strong>{" "}
-                  {ja.admin.loginCountUnit}
-                </p>
-              )}
+              {phase !== "ended" &&
+                (() => {
+                  const loggedIn = stat ? stat.loggedIn : 0;
+                  const total = stat ? stat.total : 0;
+                  const pct = total > 0 ? Math.round((loggedIn / total) * 100) : 0;
+                  return (
+                    <div className="login-meter">
+                      <div className="login-meter-head">
+                        <span className="login-meter-label">
+                          {ja.admin.loginProgress}
+                        </span>
+                        <span className="login-meter-count">
+                          {loggedIn} / {total}
+                          <span className="unit">{ja.admin.loginCountUnit}</span>
+                        </span>
+                      </div>
+                      <div
+                        className="meter"
+                        role="progressbar"
+                        aria-valuenow={loggedIn}
+                        aria-valuemin={0}
+                        aria-valuemax={total}
+                      >
+                        <div className="meter-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })()}
 
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 {phase === "lobby" && (
@@ -274,12 +294,6 @@ export default function AdminPage() {
                   {ja.admin.deleteSession}
                 </button>
               </div>
-
-              <p className="muted" style={{ marginTop: 0 }}>
-                {ja.admin.dataPlaneAlwaysOn}
-                <br />
-                {ja.admin.dataPlaneRunbook}
-              </p>
 
               <p style={{ marginTop: 16 }}>
                 <strong>{ja.admin.playerUrl}:</strong>{" "}

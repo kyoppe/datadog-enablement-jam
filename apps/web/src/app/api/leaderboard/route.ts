@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     .map((p) => {
       const solvedCount = playerSolvedCount(p);
       return {
-        handle: p.handle,
+        name: p.name,
         score: playerTotalScore(p),
         solvedCount,
         totalQuests,
@@ -37,6 +37,7 @@ export async function GET(request: Request) {
         speedBonus: playerSpeedBonus(p),
         solvedAt: playerLastSolvedAt(p),
         lastSubmissionAt: playerLastSubmissionAt(p),
+        finishedAt: p.finishedAt,
       };
     })
     // Rank by total score desc, then by earliest most-recent solve (faster wins).

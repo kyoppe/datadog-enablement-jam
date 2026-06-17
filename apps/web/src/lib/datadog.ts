@@ -74,10 +74,9 @@ export function initDatadog(): void {
 
 export interface GameContext {
   sessionId: string;
-  // Stable identity (email) used as the RUM user id and dej_email tag.
-  email?: string;
-  // Anonymous public handle.
-  handle?: string;
+  // Entered display name (multibyte allowed). Used as the RUM user and the
+  // dej_player tag. No anonymity, no email.
+  name?: string;
   module?: string;
   scenario?: string;
 }
@@ -90,14 +89,11 @@ export function setGameContext(ctx: GameContext): void {
   datadogRum.setGlobalContextProperty("dej_session", ctx.sessionId);
   if (ctx.module) datadogRum.setGlobalContextProperty("dej_module", ctx.module);
   if (ctx.scenario) datadogRum.setGlobalContextProperty("dej_scenario", ctx.scenario);
-  if (ctx.handle) datadogRum.setGlobalContextProperty("dej_handle", ctx.handle);
-  if (ctx.email) datadogRum.setGlobalContextProperty("dej_email", ctx.email);
-
-  if (ctx.email || ctx.handle) {
-    datadogRum.setUser({ id: ctx.email ?? ctx.handle, name: ctx.handle });
+  if (ctx.name) {
+    datadogRum.setGlobalContextProperty("dej_player", ctx.name);
+    datadogRum.setUser({ id: ctx.name, name: ctx.name });
   }
 
   datadogLogs.setGlobalContextProperty("dej_session", ctx.sessionId);
-  if (ctx.handle) datadogLogs.setGlobalContextProperty("dej_handle", ctx.handle);
-  if (ctx.email) datadogLogs.setGlobalContextProperty("dej_email", ctx.email);
+  if (ctx.name) datadogLogs.setGlobalContextProperty("dej_player", ctx.name);
 }

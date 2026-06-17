@@ -3,16 +3,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { ja } from "@/i18n/ja";
 import { setGameContext } from "@/lib/datadog";
+import LeaderboardTable from "@/components/LeaderboardTable";
+import { copyText } from "@/lib/clipboard";
+
+export interface PublicAnswerField {
+  key: string;
+  prompt: string;
+  label: string;
+  required: boolean;
+  type?: "text" | "multi_choice";
+  options?: { value: string; label: string }[];
+}
 
 export interface PublicQuest {
   id: string;
   display_title: string;
   description: string;
   starting_point: string;
-  answer_fields: Record<string, { label: string; required: boolean }>;
+  datadog_path?: string;
+  // Ordered list of fields; order drives the stepwise prompt -> input layout.
+  answer_fields: PublicAnswerField[];
   hints: { label: string; text: string }[];
   max_score: number;
 }
+
+// Base URL of the org's Datadog app (e.g. https://kyouhei.datadoghq.com).
+// Used to turn each quest's datadog_path into a one-click deep link.
+const DD_APP_URL =
+  process.env.NEXT_PUBLIC_DD_APP_URL || "https://app.datadoghq.com";
 
 export interface PublicModule {
   id: string;
@@ -43,11 +61,8 @@ interface QuestState {
   speedBonus: number;
 }
 
-interface AnswerInput {
-  rootCause: string;
-  resource: string;
-  evidence: string;
-}
+// Answers for one quest, keyed by answer-field key.
+type AnswerInput = Record<string, string>;
 
 interface SubmitResult {
   verdict: "correct" | "partiallyCorrect" | "incorrect";
@@ -66,7 +81,7 @@ const emptyQuestState: QuestState = {
   speedBonus: 0,
 };
 
-const emptyAnswer: AnswerInput = { rootCause: "", resource: "", evidence: "" };
+const emptyAnswer: AnswerInput = {};
 
 export default function PlayClient({
   sessionId,
@@ -77,11 +92,9 @@ export default function PlayClient({
 }: Props) {
   const allQuests = useMemo(() => modules.flatMap((m) => m.quests), [modules]);
 
-  const [email, setEmail] = useState("");
-  const [emailConfirm, setEmailConfirm] = useState("");
   const [playerName, setPlayerName] = useState("");
-  const [handle, setHandle] = useState("");
   const [joined, setJoined] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [phase, setPhase] = useState<SessionPhase>(initialPhase);
   const [login, setLogin] = useState<DatadogLogin | null>(null);
   const [loginConfirmed, setLoginConfirmed] = useState(false);
@@ -134,8 +147,8 @@ export default function PlayClient({
     return () => clearInterval(timer);
   }, [inLobby, sessionId]);
 
-  function copy(key: string, text: string) {
-    navigator.clipboard.writeText(text);
+  async function copy(key: string, text: string) {
+    await copyText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
   }
@@ -146,7 +159,7 @@ export default function PlayClient({
       await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ sessionId, name: playerName.trim() }),
       });
     } catch {
       // Best-effort: the headcount metric is non-critical to gameplay.
@@ -164,31 +177,35 @@ export default function PlayClient({
     return answers[questId] ?? emptyAnswer;
   }
 
-  function setAnswerField(questId: string, field: keyof AnswerInput, value: string) {
+  function setAnswerField(questId: string, fieldKey: string, value: string) {
     setAnswers((prev) => ({
       ...prev,
-      [questId]: { ...(prev[questId] ?? emptyAnswer), [field]: value },
+      [questId]: { ...(prev[questId] ?? emptyAnswer), [fieldKey]: value },
     }));
   }
 
+  // multi_choice values are stored as a comma-separated list of option values.
+  function toggleChoice(questId: string, fieldKey: string, optionValue: string) {
+    const current = (answers[questId]?.[fieldKey] ?? "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    const next = current.includes(optionValue)
+      ? current.filter((v) => v !== optionValue)
+      : [...current, optionValue];
+    setAnswerField(questId, fieldKey, next.join(","));
+  }
+
   async function join() {
-    const e = email.trim().toLowerCase();
-    if (!playerName.trim()) {
+    const name = playerName.trim();
+    if (!name) {
       setMessage(ja.errors.playerNameRequired);
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-      setMessage(ja.errors.emailInvalid);
-      return;
-    }
-    if (e !== emailConfirm.trim().toLowerCase()) {
-      setMessage(ja.errors.emailMismatch);
       return;
     }
     const res = await fetch("/api/players", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, email: e, name: playerName.trim() }),
+      body: JSON.stringify({ sessionId, name }),
     });
     if (res.status === 409) {
       setMessage(ja.errors.sessionEnded);
@@ -201,10 +218,25 @@ export default function PlayClient({
     const data = await res.json();
     setProgress(data.progress ?? {});
     setTotalScore(data.totalScore ?? 0);
-    setHandle(data.handle ?? "");
-    setGameContext({ sessionId, email: e, handle: data.handle });
+    setFinished(Boolean(data.finishedAt));
+    setGameContext({ sessionId, name });
     setJoined(true);
     setMessage(null);
+  }
+
+  async function finishAnswering() {
+    if (!window.confirm(ja.player.confirmFinish)) return;
+    setFinished(true);
+    try {
+      await fetch("/api/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, name: playerName.trim() }),
+      });
+    } catch {
+      // Best-effort; the leaderboard finish marker is non-critical to scoring.
+    }
+    setMessage(ja.player.finishedNotice);
   }
 
   async function showHint(questId: string, index: number) {
@@ -213,7 +245,7 @@ export default function PlayClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId,
-        email: email.trim().toLowerCase(),
+        name: playerName.trim(),
         questId,
         hintIndex: index,
       }),
@@ -237,16 +269,16 @@ export default function PlayClient({
 
   async function submit(questId: string) {
     const a = answer(questId);
+    const trimmed: Record<string, string> = {};
+    for (const [key, value] of Object.entries(a)) trimmed[key] = value.trim();
     const res = await fetch("/api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId,
-        email: email.trim().toLowerCase(),
+        name: playerName.trim(),
         questId,
-        rootCauseService: a.rootCause.trim(),
-        affectedResource: a.resource.trim(),
-        evidenceUrl: a.evidence.trim(),
+        answers: trimmed,
       }),
     });
     if (res.status === 409) {
@@ -284,22 +316,6 @@ export default function PlayClient({
         {ended && <p className="muted">{ja.errors.sessionEnded}</p>}
         <div className="panel">
           <p className="muted">{ja.player.joinHint}</p>
-          <label htmlFor="email">{ja.player.email}</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={ja.player.emailPlaceholder}
-          />
-          <label htmlFor="emailConfirm">{ja.player.emailConfirm}</label>
-          <input
-            id="emailConfirm"
-            type="email"
-            value={emailConfirm}
-            onChange={(e) => setEmailConfirm(e.target.value)}
-            placeholder={ja.player.emailPlaceholder}
-          />
           <label htmlFor="player">{ja.player.playerName}</label>
           <input
             id="player"
@@ -307,6 +323,10 @@ export default function PlayClient({
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             placeholder={ja.player.playerNamePlaceholder}
+            onKeyDown={(e) => {
+              // Ignore Enter used to commit an IME (Japanese) conversion.
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) join();
+            }}
           />
           <button onClick={join} disabled={ended}>
             {ja.player.join}
@@ -322,7 +342,7 @@ export default function PlayClient({
       <main>
         <h1>{sessionName}</h1>
         <p className="subheading">
-          {ja.player.youAre}: <strong>{handle}</strong>
+          {ja.player.youAre}: <strong>{playerName.trim()}</strong>
         </p>
         <div className="panel">
           <h2>{ja.lobby.waitingTitle}</h2>
@@ -383,11 +403,28 @@ export default function PlayClient({
     <main>
       <h1>{sessionName}</h1>
       <p className="subheading">
-        {ja.player.youAre}: <strong>{handle}</strong> ·{" "}
+        {ja.player.youAre}: <strong>{playerName.trim()}</strong> ·{" "}
         {ja.score.currentScore}: <span className="score-pill">{totalScore}</span> ·{" "}
         {ja.player.progressLabel}: {solvedCount}/{allQuests.length}
       </p>
-      <p className="muted">{ja.player.anonymityNote}</p>
+
+      {finished ? (
+        <div className="panel">
+          <p className="badge ok">{ja.player.finishedBadge}</p>
+          <p className="muted">{ja.player.finishedNotice}</p>
+        </div>
+      ) : (
+        !ended && (
+          <div className="panel">
+            <button className="secondary" onClick={finishAnswering}>
+              {ja.player.finishAnswering}
+            </button>
+            <p className="muted" style={{ marginTop: 8 }}>
+              {ja.player.finishHint}
+            </p>
+          </div>
+        )
+      )}
 
       <div className="panel">
         <h3>{ja.player.questListHeading}</h3>
@@ -425,6 +462,18 @@ export default function PlayClient({
               <strong>{ja.player.questStartingPointLabel}:</strong>{" "}
               {currentQuest.starting_point}
             </p>
+            {currentQuest.datadog_path && (
+              <p>
+                <a
+                  href={`${DD_APP_URL}${currentQuest.datadog_path}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {ja.player.openInDatadog}
+                </a>{" "}
+                <span className="muted">{ja.player.openInDatadogHint}</span>
+              </p>
+            )}
           </div>
 
           <div className="panel">
@@ -435,25 +484,52 @@ export default function PlayClient({
             </p>
 
             <h3>{ja.player.answerHeading}</h3>
-            <label>{ja.player.rootCauseService}</label>
-            <input
-              type="text"
-              value={answer(currentQuest.id).rootCause}
-              onChange={(e) => setAnswerField(currentQuest.id, "rootCause", e.target.value)}
-            />
-            <label>{ja.player.affectedResource}</label>
-            <input
-              type="text"
-              value={answer(currentQuest.id).resource}
-              onChange={(e) => setAnswerField(currentQuest.id, "resource", e.target.value)}
-            />
-            <label>{ja.player.evidenceUrl}</label>
-            <input
-              type="url"
-              value={answer(currentQuest.id).evidence}
-              onChange={(e) => setAnswerField(currentQuest.id, "evidence", e.target.value)}
-            />
-            <button onClick={() => submit(currentQuest.id)} disabled={ended}>
+            {currentQuest.answer_fields.map((field, i) => {
+              const selected = (answer(currentQuest.id)[field.key] ?? "")
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean);
+              return (
+                <div key={field.key} className="answer-step">
+                  <p className="answer-prompt">
+                    <span className="answer-step-num">{i + 1}.</span> {field.prompt}
+                  </p>
+                  {field.type === "multi_choice" ? (
+                    <div className="choice-group">
+                      {(field.options ?? []).map((opt) => (
+                        <label key={opt.value} className="choice-option">
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(opt.value)}
+                            onChange={() =>
+                              toggleChoice(currentQuest.id, field.key, opt.value)
+                            }
+                            disabled={ended || finished}
+                          />{" "}
+                          {opt.label}
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <label htmlFor={`${currentQuest.id}-${field.key}`}>
+                        {field.label}
+                      </label>
+                      <input
+                        id={`${currentQuest.id}-${field.key}`}
+                        type="text"
+                        value={answer(currentQuest.id)[field.key] ?? ""}
+                        onChange={(e) =>
+                          setAnswerField(currentQuest.id, field.key, e.target.value)
+                        }
+                        disabled={ended || finished}
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            })}
+            <button onClick={() => submit(currentQuest.id)} disabled={ended || finished}>
               {ja.player.submitAnswer}
             </button>
 
@@ -482,7 +558,7 @@ export default function PlayClient({
                   <button
                     className="secondary"
                     onClick={() => showHint(currentQuest.id, i)}
-                    disabled={ended}
+                    disabled={ended || finished}
                   >
                     {ja.player.showHint} ({hint.label})
                   </button>
@@ -494,9 +570,15 @@ export default function PlayClient({
         </>
       )}
 
-      <p>
-        <a href={`/leaderboard/${sessionId}`}>{ja.leaderboard.heading}</a>
-      </p>
+      <div className="panel">
+        <h3>{ja.leaderboard.heading}</h3>
+        <LeaderboardTable sessionId={sessionId} />
+        <p style={{ marginTop: 12 }}>
+          <a href={`/leaderboard/${sessionId}`} target="_blank" rel="noreferrer">
+            {ja.leaderboard.openFull}
+          </a>
+        </p>
+      </div>
     </main>
   );
 }

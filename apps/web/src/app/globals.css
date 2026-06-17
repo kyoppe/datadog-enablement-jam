@@ -197,3 +197,93 @@ th {
   font-size: 1.4rem;
   font-weight: 700;
 }
+
+/* Stepwise answer fields: each field is "prompt -> input". */
+.answer-step {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.answer-step:last-of-type {
+  border-bottom: none;
+}
+
+.answer-prompt {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.answer-step-num {
+  color: var(--accent-2);
+  margin-right: 4px;
+}
+
+.choice-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.choice-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.choice-option input {
+  width: auto;
+  margin: 0;
+}
+
+/* Standalone login headcount meter on the admin page. */
+.login-meter {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+}
+
+.login-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.login-meter-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.login-meter-count {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.login-meter-count .unit {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.meter {
+  height: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--ok);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}

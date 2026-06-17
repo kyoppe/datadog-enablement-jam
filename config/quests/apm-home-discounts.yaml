@@ -1,0 +1,74 @@
+# DEJ quest definition (source of truth for player UI copy and scoring).
+# UI-facing copy is Japanese; identifiers and config keys stay English.
+#
+# Narrative arc, quest 4 of 4: a second latency case. Confirmed from APM
+# (env:dej): the home page span Spree::HomeController#index spends the
+# overwhelming majority of its time in the downstream discounts-service
+# GET /discount call (~88% of the request in inspected traces). The postgres
+# queries inside discounts-service are each only ~1-6ms, so the root cause is
+# the downstream service response, not the DB. Telemetry: always-on Storedog +
+# Locust data plane on EC2.
+id: apm-home-discounts
+module: apm-troubleshoot-workflow
+scenario: storedog-home-discounts
+
+title: Slow Home Page Investigation
+display_title: ホームページ遅延の調査
+
+# Symptom only: do not name the resource / downstream service (answers).
+description: >-
+  トップページのレイテンシも悪化しています。Trace Sample（フレームグラフ）で、
+  リクエスト時間の大半を占めている下流サービスと、その呼び出しを特定してください。
+  なお下流サービス内の DB クエリ自体は高速です。
+
+# Pre-filtered Datadog deep link: store-frontend APM service page, env:dej.
+datadog_path: /apm/services/store-frontend?env=dej
+
+starting_point: >-
+  「APM Service Page を開く」リンク（store-frontend / env:dej で絞り込み済み）から
+  調査を開始し、トップページの Trace Sample を確認してください。
+
+answer_fields:
+  - key: root_cause_service
+    prompt: トップページのリクエスト時間の大半を占めている下流サービスはどれですか？
+    label: 主因となっている下流サービス
+    expected: discounts-service
+    points: 300
+    required: true
+  - key: downstream_call
+    prompt: その下流サービスへの呼び出し（Operation / Resource 名）は何ですか？
+    label: 下流への呼び出し
+    expected: GET /discount
+    points: 200
+    required: true
+  - key: top_resource
+    prompt: トップページに対応する APM の Resource 名は何ですか？
+    label: トップページの Resource
+    expected: Spree::HomeController#index
+    points: 100
+    required: true
+
+scoring:
+  # Sum of field points (600) + speed_bonus.max (200). Floored at 0 for display.
+  max_score: 800
+  hint_penalties:
+    - -50
+    - -100
+    - -150
+  speed_bonus:
+    max: 200
+    window_seconds: 900
+
+hints:
+  - label: ヒント 1
+    text: >-
+      store-frontend の APM Service Page で、トップページ（Spree::HomeController#index）の
+      レイテンシ（p95 など）の悪化を確認してください。
+  - label: ヒント 2
+    text: >-
+      その Resource の Trace Sample を開き、フレームグラフで下流サービスの Span Duration を
+      比較してください。
+  - label: ヒント 3
+    text: >-
+      支配的な下流は discounts-service（GET /discount）です。discounts-service 内の DB クエリ
+      自体は速く、サービスの応答が遅いことが原因です。

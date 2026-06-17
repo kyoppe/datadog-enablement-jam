@@ -1,0 +1,40 @@
+# DEJ enablement module definition.
+# A module groups the enablement topic with the quest(s) participants solve.
+id: apm-troubleshoot-workflow
+title: APM Troubleshoot Workflow
+# Japanese display title shown in the UI.
+display_title: APM トラブルシュート ワークフロー
+
+# Short enablement summary shown before/around the hands-on challenge.
+description: >-
+  Datadog APM の Service Page を起点に、レイテンシ・エラー率・リクエスト数、Resource、
+  下流依存、Trace Sample、Error Tracking を使って、レイテンシ悪化やエラーの原因を切り分ける
+  一連のトラブルシュート ワークフローを学びます。
+
+# Investigation path this module teaches.
+investigation_path:
+  - APM Service Page
+  - レイテンシ / エラー率 / リクエスト数 (latency / errors / requests)
+  - Resource ごとのレイテンシ
+  - 下流依存 / Trace Sample (フレームグラフ)
+  - Error Tracking (エラー種別 / 発生箇所)
+  - 原因サービス / Resource
+
+learning_objectives:
+  - 参加者は APM Service Page でサービスのレイテンシ・エラー率・リクエスト数を確認できる。
+  - 参加者は Resource ごとのレイテンシから影響を受けている Endpoint / Resource を特定できる。
+  - 参加者は Trace Sample（フレームグラフ）で遅い下流サービスを特定できる。
+  - 参加者は Error Tracking から主要なエラーの発生箇所と種別を特定できる。
+
+# Quests that belong to this module. Ordered as a narrative arc: first notice
+# that something is wrong on the Service Page (triage), then drill into the
+# errors, then into the latency (product page, then home page).
+quests:
+  - apm-store-triage
+  - apm-store-errors
+  - apm-product-ads
+  - apm-home-discounts
+
+# Telemetry is provided by the always-on Storedog + Locust data plane on EC2
+# (see docs/data-plane.md). There is no per-session scenario to launch.
+default_scenario: storedog-ec2

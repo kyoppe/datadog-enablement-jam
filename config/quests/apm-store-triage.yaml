@@ -1,0 +1,66 @@
+# DEJ quest definition (source of truth for player UI copy and scoring).
+# UI-facing copy is Japanese; identifiers and config keys stay English.
+#
+# Narrative arc, quest 1 of 4: orientation / triage. The player opens the
+# store-frontend APM Service Page and recognizes that BOTH the error rate and
+# the latency are abnormal. This sets up quest 2 (errors) and quests 3-4
+# (latency). Telemetry source: the always-on Storedog + Locust data plane on
+# EC2 (see docs/data-plane.md), env:dej.
+id: apm-store-triage
+module: apm-troubleshoot-workflow
+scenario: storedog-frontend
+
+title: Service Page Triage
+display_title: Service Page で異常に気づく
+
+# Symptom only: do not reveal which signals are abnormal (that is the answer).
+description: >-
+  store-frontend の APM Service Page を開き、サービスの健全性を確認してください。
+  RED 指標（リクエスト数 / エラー率 / レイテンシ）の直近の推移を見て、何か問題が
+  起きていることに気づけますか？
+
+# Pre-filtered Datadog deep link: store-frontend APM service page, env:dej.
+datadog_path: /apm/services/store-frontend?env=dej
+
+starting_point: >-
+  「APM Service Page を開く」リンク（store-frontend / env:dej で絞り込み済み）から、
+  リクエスト数・エラー率・レイテンシ（p95 など）のグラフの直近の変化を確認してください。
+
+# Ordered answer fields. multi_choice is graded as an unordered set.
+answer_fields:
+  - key: abnormal_signals
+    type: multi_choice
+    prompt: RED 指標のうち、異常（悪化）が見られるものをすべて選んでください。
+    label: 異常が見られる指標
+    options:
+      - value: rate
+        label: リクエスト数 (Rate)
+      - value: errors
+        label: エラー率 (Errors)
+      - value: latency
+        label: レイテンシ (Duration / p95)
+    expected:
+      - errors
+      - latency
+    points: 300
+    required: true
+
+scoring:
+  # Sum of field points (300) + speed_bonus.max (200). Floored at 0 for display.
+  max_score: 500
+  hint_penalties:
+    - -50
+    - -100
+  speed_bonus:
+    max: 200
+    window_seconds: 900
+
+hints:
+  - label: ヒント 1
+    text: >-
+      Service Page の上部にある時系列グラフ（Requests / Errors / Latency）を、
+      直近の時間帯で確認してください。平常時と比べて跳ねている指標はどれですか？
+  - label: ヒント 2
+    text: >-
+      エラー率（Errors）の上昇と、レイテンシ（Duration / p95）の悪化の両方が
+      見られます。リクエスト数（Rate）自体は大きな異常ではありません。

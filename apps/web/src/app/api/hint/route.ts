@@ -12,12 +12,12 @@ import { reportPlayerScore } from "@/lib/datadog-server";
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const sessionId = (body.sessionId as string)?.trim();
-  const email = (body.email as string)?.trim().toLowerCase();
+  const name = (body.name as string)?.trim();
   const questId = (body.questId as string)?.trim();
   const hintIndex = Number(body.hintIndex);
-  if (!sessionId || !email || !questId || Number.isNaN(hintIndex)) {
+  if (!sessionId || !name || !questId || Number.isNaN(hintIndex)) {
     return NextResponse.json(
-      { error: "sessionId, email, questId and hintIndex are required" },
+      { error: "sessionId, name, questId and hintIndex are required" },
       { status: 400 },
     );
   }
@@ -34,9 +34,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "quest not in session" }, { status: 400 });
   }
 
-  const player = getPlayer(sessionId, email);
+  const player = getPlayer(sessionId, name);
   if (!player) {
     return NextResponse.json({ error: "player has not joined" }, { status: 404 });
+  }
+  if (player.finishedAt) {
+    return NextResponse.json({ error: "player has finished" }, { status: 409 });
   }
   const quest = loadQuest(questId);
   const progress = getOrInitProgress(player, questId);

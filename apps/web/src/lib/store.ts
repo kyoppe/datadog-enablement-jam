@@ -124,31 +124,20 @@ export function deleteSession(id: string): boolean {
 
 // --- Players ---------------------------------------------------------------
 
-// Backfill identity/progress for players created before email + handle existed.
+// Backfill identity/progress for players. The display name is the identity.
+// Legacy players (created when email/handle existed) fall back to handle/email.
 function normalizePlayer(p: Player): Player {
-  const legacyName = (p as Partial<Player> & { name?: string }).name ?? "";
-  const email = p.email ?? legacyName;
+  const legacy = p as Partial<Player> & { handle?: string; email?: string };
+  const name = p.name || legacy.handle || legacy.email || "";
   return {
-    ...p,
-    email,
-    name: legacyName,
-    handle: p.handle ?? legacyName ?? email,
-    provisioned: p.provisioned ?? false,
-    progress: p.progress ?? {},
+    id: p.id,
+    sessionId: p.sessionId,
+    name,
     joinedAt: p.joinedAt ?? new Date().toISOString(),
     loggedInAt: p.loggedInAt ?? null,
+    finishedAt: p.finishedAt ?? null,
+    progress: p.progress ?? {},
   };
-}
-
-// Short, opaque public handle. Stable per player (stored on creation).
-function generateHandle(existing: Player[]): string {
-  const taken = new Set(existing.map((p) => p.handle));
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    const code = Math.random().toString(36).slice(2, 6).toUpperCase();
-    const handle = `プレイヤー-${code}`;
-    if (!taken.has(handle)) return handle;
-  }
-  return `プレイヤー-${Date.now().toString(36).toUpperCase()}`;
 }
 
 export function listPlayers(sessionId: string): Player[] {
@@ -157,28 +146,26 @@ export function listPlayers(sessionId: string): Player[] {
     .map(normalizePlayer);
 }
 
-export function getPlayer(sessionId: string, email: string): Player | undefined {
-  const p = readDB().players.find((x) => x.sessionId === sessionId && x.email === email);
+export function getPlayer(sessionId: string, name: string): Player | undefined {
+  const p = readDB().players.find(
+    (x) => x.sessionId === sessionId && normalizePlayer(x).name === name,
+  );
   return p ? normalizePlayer(p) : undefined;
 }
 
-export function getOrCreatePlayer(
-  sessionId: string,
-  email: string,
-  name: string,
-): Player {
+export function getOrCreatePlayer(sessionId: string, name: string): Player {
   const db = readDB();
-  const existing = db.players.find((p) => p.sessionId === sessionId && p.email === email);
+  const existing = db.players.find(
+    (p) => p.sessionId === sessionId && normalizePlayer(p).name === name,
+  );
   if (existing) return normalizePlayer(existing);
   const player: Player = {
-    id: `${sessionId}:${email}`,
+    id: `${sessionId}:${name}`,
     sessionId,
-    email,
     name,
-    handle: generateHandle(db.players.filter((p) => p.sessionId === sessionId)),
-    provisioned: false,
     joinedAt: new Date().toISOString(),
     loggedInAt: null,
+    finishedAt: null,
     progress: {},
   };
   db.players.push(player);
@@ -191,16 +178,36 @@ export function getOrCreatePlayer(
 // found.
 export function markPlayerLoggedIn(
   sessionId: string,
-  email: string,
+  name: string,
 ): Player | undefined {
   const db = readDB();
   const idx = db.players.findIndex(
-    (p) => p.sessionId === sessionId && p.email === email,
+    (p) => p.sessionId === sessionId && normalizePlayer(p).name === name,
   );
   if (idx < 0) return undefined;
   const player = normalizePlayer(db.players[idx]);
   if (!player.loggedInAt) {
     player.loggedInAt = new Date().toISOString();
+    db.players[idx] = player;
+    writeDB(db);
+  }
+  return player;
+}
+
+// Record that a player declared they are done ("回答を終了"). Idempotent: the
+// first finish timestamp is kept. Returns the player, or undefined if not found.
+export function markPlayerFinished(
+  sessionId: string,
+  name: string,
+): Player | undefined {
+  const db = readDB();
+  const idx = db.players.findIndex(
+    (p) => p.sessionId === sessionId && normalizePlayer(p).name === name,
+  );
+  if (idx < 0) return undefined;
+  const player = normalizePlayer(db.players[idx]);
+  if (!player.finishedAt) {
+    player.finishedAt = new Date().toISOString();
     db.players[idx] = player;
     writeDB(db);
   }

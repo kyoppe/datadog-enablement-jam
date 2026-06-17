@@ -42,8 +42,8 @@ answer_fields:
     points: 200
     required: true
   - key: top_resource
-    prompt: トップページに対応する APM の Resource 名は何ですか？
-    label: トップページの Resource
+    prompt: トップページに対応する APM の Resource / Endpoint 名は何ですか？
+    label: トップページの Resource / Endpoint
     expected: Spree::HomeController#index
     points: 100
     required: true
@@ -52,9 +52,9 @@ scoring:
   # Sum of field points (600) + speed_bonus.max (200). Floored at 0 for display.
   max_score: 800
   hint_penalties:
-    - -50
-    - -100
-    - -150
+    - -20
+    - -40
+    - -60
   speed_bonus:
     max: 200
     window_seconds: 900

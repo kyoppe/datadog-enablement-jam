@@ -7,6 +7,7 @@ export interface LeaderboardRow {
   name: string;
   score: number;
   solvedCount: number;
+  answeredCount: number;
   totalQuests: number;
   hintsUsed: number;
   wrongAnswers: number;
@@ -77,7 +78,7 @@ export default function LeaderboardTable({ sessionId }: { sessionId: string }) {
               )}
             </td>
             <td>
-              {r.solvedCount}/{r.totalQuests}
+              {r.answeredCount}/{r.totalQuests}
             </td>
             <td>
               <span className={`badge ${r.solved ? "ok" : "pending"}`}>

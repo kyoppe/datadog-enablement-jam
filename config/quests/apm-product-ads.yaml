@@ -29,8 +29,8 @@ starting_point: >-
 
 answer_fields:
   - key: slow_resource
-    prompt: Resource 一覧で p95 が最も高い（最も遅い）Resource はどれですか？
-    label: 最も遅い Resource
+    prompt: Resource / Endpoint の一覧で、p95 が最も高い（最も遅い）ものはどれですか？
+    label: 最も遅い Resource / Endpoint
     expected: Spree::ProductsController#show
     points: 200
     required: true
@@ -51,9 +51,9 @@ scoring:
   # Sum of field points (600) + speed_bonus.max (200). Floored at 0 for display.
   max_score: 800
   hint_penalties:
-    - -50
-    - -100
-    - -150
+    - -20
+    - -40
+    - -60
   speed_bonus:
     max: 200
     window_seconds: 900

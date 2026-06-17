@@ -4,6 +4,7 @@ import { loadQuestsForModules } from "@/lib/quest";
 import {
   playerTotalScore,
   playerSolvedCount,
+  playerAnsweredCount,
   playerHintsUsed,
   playerWrongAnswers,
   playerSpeedBonus,
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
         name: p.name,
         score: playerTotalScore(p),
         solvedCount,
+        answeredCount: playerAnsweredCount(p),
         totalQuests,
         solved: totalQuests > 0 && solvedCount >= totalQuests,
         hintsUsed: playerHintsUsed(p),

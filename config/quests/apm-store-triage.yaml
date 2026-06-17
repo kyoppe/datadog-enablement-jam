@@ -15,8 +15,8 @@ display_title: Service Page で異常に気づく
 
 # Symptom only: do not reveal which signals are abnormal (that is the answer).
 description: >-
-  store-frontend の APM Service Page を開き、サービスの健全性を確認してください。
-  RED 指標（リクエスト数 / エラー率 / レイテンシ）の直近の推移を見て、何か問題が
+  store-frontend の APM Service Page を開き、サービスの状態を確認してください。
+  リクエスト数・エラー率・レイテンシ（応答時間）の直近の推移を見て、何か問題が
   起きていることに気づけますか？
 
 # Pre-filtered Datadog deep link: store-frontend APM service page, env:dej.
@@ -30,7 +30,7 @@ starting_point: >-
 answer_fields:
   - key: abnormal_signals
     type: multi_choice
-    prompt: RED 指標のうち、異常（悪化）が見られるものをすべて選んでください。
+    prompt: リクエスト数・エラー率・レイテンシ（応答時間）のうち、異常（悪化）が見られるものをすべて選んでください。
     label: 異常が見られる指標
     options:
       - value: rate
@@ -49,8 +49,8 @@ scoring:
   # Sum of field points (300) + speed_bonus.max (200). Floored at 0 for display.
   max_score: 500
   hint_penalties:
-    - -50
-    - -100
+    - -20
+    - -40
   speed_bonus:
     max: 200
     window_seconds: 900

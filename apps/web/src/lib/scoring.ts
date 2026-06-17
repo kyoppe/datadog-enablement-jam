@@ -86,6 +86,13 @@ export function playerSolvedCount(player: Player): number {
   return Object.values(player.progress).filter((p) => p.solved).length;
 }
 
+// Number of quests the player has answered (submitted at least once). A hint
+// alone does not count as an answer.
+export function playerAnsweredCount(player: Player): number {
+  return Object.values(player.progress).filter((p) => p.submissions.length > 0)
+    .length;
+}
+
 export function playerHintsUsed(player: Player): number {
   return Object.values(player.progress).reduce((sum, p) => sum + p.hintsUsed, 0);
 }

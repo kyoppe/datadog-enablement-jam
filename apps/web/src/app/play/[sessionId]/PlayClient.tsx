@@ -57,6 +57,8 @@ interface DatadogLogin {
 interface QuestState {
   questScore: number;
   solved: boolean;
+  // True once the player has submitted an answer for this quest at least once.
+  attempted: boolean;
   revealedHints: number[];
   speedBonus: number;
 }
@@ -77,6 +79,7 @@ interface SubmitResult {
 const emptyQuestState: QuestState = {
   questScore: 0,
   solved: false,
+  attempted: false,
   revealedHints: [],
   speedBonus: 0,
 };
@@ -167,7 +170,9 @@ export default function PlayClient({
   }
 
   const currentQuest = allQuests.find((q) => q.id === selectedQuestId) ?? null;
-  const solvedCount = Object.values(progress).filter((p) => p.solved).length;
+  const answeredCount = Object.values(progress).filter(
+    (p) => p.attempted || p.solved,
+  ).length;
 
   function questState(questId: string): QuestState {
     return progress[questId] ?? emptyQuestState;
@@ -292,6 +297,7 @@ export default function PlayClient({
         ...questState(questId),
         questScore: data.questScore,
         solved: data.solved,
+        attempted: true,
         speedBonus: data.speedBonus || questState(questId).speedBonus,
       },
     }));
@@ -350,6 +356,11 @@ export default function PlayClient({
         </div>
 
         <div className="panel">
+          <div className="callout">
+            <strong>{ja.lobby.incognitoTipTitle}</strong>
+            <br />
+            {ja.lobby.incognitoTip}
+          </div>
           <h3>{ja.lobby.credsHeading}</h3>
           {login ? (
             <>
@@ -405,7 +416,7 @@ export default function PlayClient({
       <p className="subheading">
         {ja.player.youAre}: <strong>{playerName.trim()}</strong> ·{" "}
         {ja.score.currentScore}: <span className="score-pill">{totalScore}</span> ·{" "}
-        {ja.player.progressLabel}: {solvedCount}/{allQuests.length}
+        {ja.player.progressLabel}: {answeredCount}/{allQuests.length}
       </p>
 
       {finished ? (
@@ -428,6 +439,9 @@ export default function PlayClient({
 
       <div className="panel">
         <h3>{ja.player.questListHeading}</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          {ja.player.questListIntro.replace("{count}", String(allQuests.length))}
+        </p>
         {modules.map((mod) => (
           <div key={mod.id} style={{ marginBottom: 12 }}>
             <p className="muted" style={{ marginBottom: 4 }}>

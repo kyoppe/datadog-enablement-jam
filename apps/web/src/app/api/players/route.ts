@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       {
         questScore: displayScore(p),
         solved: p.solved,
+        attempted: p.submissions.length > 0,
         revealedHints: p.revealedHints,
         speedBonus: p.speedBonus,
       },

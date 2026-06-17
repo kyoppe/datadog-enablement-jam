@@ -68,8 +68,10 @@ export const ja = {
       "リーダーボードに表示する名前を入力してください（入力した名前がそのまま表示されます）。Datadog へは次の画面に表示される共有アカウントでログインします。",
     youAre: "あなた",
     join: "参加する",
-    questListHeading: "クエスト一覧",
-    progressLabel: "進捗",
+    questListHeading: "問題を選ぶ",
+    questListIntro:
+      "全 {count} 問あります。好きな順番で回答できます。問題を選んで調査を始めてください（正解した問題には ✓ が付きます）。",
+    progressLabel: "回答済み",
     noQuests: "このセッションにはクエストがありません",
     questStartingPointLabel: "調査の起点",
     openInDatadog: "Datadog で開く",
@@ -90,6 +92,9 @@ export const ja = {
     waitingTitle: "問題スタートをお待ちください",
     waitingHint:
       "まずは下のアカウントで Datadog にログインしてください。準備ができたら「Datadog にログインしました」を押してください。全員が揃ったら TEM が問題を開始します。",
+    incognitoTipTitle: "おすすめ: シークレット / Incognito ウィンドウで開く",
+    incognitoTip:
+      "普段お使いの Datadog アカウントと干渉しないよう、ブラウザの「シークレット ウィンドウ」(Chrome) / 「プライベート ウィンドウ」(Firefox/Safari) / 「Incognito」を開き、そこにこのページの URL を貼り付けて操作することをおすすめします。リンクから直接シークレットで開くことはできないため、お手数ですが手動でシークレット ウィンドウを開いてください。",
     credsHeading: "Datadog ログイン情報 (共有アカウント)",
     openDatadog: "Datadog を開く",
     emailLabel: "メールアドレス",

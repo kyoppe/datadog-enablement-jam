@@ -17,6 +17,13 @@ export default function RootLayout({
     <html lang="ja">
       <body>
         <DatadogInit />
+        <header className="app-header">
+          <div className="app-header-inner">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/datadog-logo.png" alt="Datadog" className="app-logo" />
+            <span className="app-title">{ja.common.appName}</span>
+          </div>
+        </header>
         <div className="container">{children}</div>
       </body>
     </html>

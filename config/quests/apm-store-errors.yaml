@@ -36,8 +36,8 @@ answer_fields:
     points: 200
     required: true
   - key: error_resource
-    prompt: そのエラーが発生している Resource（テンプレート）はどれですか？
-    label: 発生箇所 (Resource / テンプレート)
+    prompt: そのエラーが発生している Resource / Endpoint はどれですか？
+    label: 発生箇所 (Resource / Endpoint)
     expected: spree/shared/_head.html.erb
     points: 300
     required: true
@@ -52,9 +52,9 @@ scoring:
   # Sum of field points (600) + speed_bonus.max (200). Floored at 0 for display.
   max_score: 800
   hint_penalties:
-    - -50
-    - -100
-    - -150
+    - -20
+    - -40
+    - -60
   speed_bonus:
     max: 200
     window_seconds: 900

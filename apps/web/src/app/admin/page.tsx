@@ -243,12 +243,28 @@ export default function AdminPage() {
                 <span className="mono">({s.id})</span>{" "}
                 <span className={`badge ${phaseBadge.cls}`}>{phaseBadge.label}</span>
               </p>
-              <p className="muted" style={{ marginTop: 0 }}>
-                {ja.admin.targetModules}: {moduleNames || "-"} ·{" "}
-                {ja.admin.createdAt}: {formatTime(s.createdAt)}
-                {s.startedAt && ` · ${ja.admin.startedAt}: ${formatTime(s.startedAt)}`}
-                {ended && s.endedAt && ` · ${ja.admin.endedAt}: ${formatTime(s.endedAt)}`}
-              </p>
+              <dl className="meta-grid">
+                <div>
+                  <dt>{ja.admin.targetModules}</dt>
+                  <dd>{moduleNames || "-"}</dd>
+                </div>
+                <div>
+                  <dt>{ja.admin.createdAt}</dt>
+                  <dd>{formatTime(s.createdAt)}</dd>
+                </div>
+                {s.startedAt && (
+                  <div>
+                    <dt>{ja.admin.startedAt}</dt>
+                    <dd>{formatTime(s.startedAt)}</dd>
+                  </div>
+                )}
+                {ended && s.endedAt && (
+                  <div>
+                    <dt>{ja.admin.endedAt}</dt>
+                    <dd>{formatTime(s.endedAt)}</dd>
+                  </div>
+                )}
+              </dl>
 
               {phase !== "ended" &&
                 (() => {

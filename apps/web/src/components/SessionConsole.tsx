@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ja } from "@/i18n/ja";
 import { dejDashboardUrl } from "@/lib/dashboard";
+import { copyText } from "@/lib/clipboard";
 
 type SessionPhase = "lobby" | "running" | "ended";
 
@@ -35,6 +36,12 @@ export default function SessionConsole({
 }) {
   const [session, setSession] = useState<Session | null>(null);
   const [login, setLogin] = useState<LoginStat>({ total: 0, loggedIn: 0 });
+  const [origin, setOrigin] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -75,7 +82,16 @@ export default function SessionConsole({
     await patch("end");
   }
 
+  async function copyPlayerUrl() {
+    await copyText(playerUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
   if (!session) return null;
+
+  const playerUrl = `${origin}/play/${session.id}`;
+  const leaderboardUrl = `${origin}/leaderboard/${session.id}`;
 
   const phase = session.phase ?? (session.status === "ended" ? "ended" : "running");
   const pct = login.total > 0 ? Math.round((login.loggedIn / login.total) * 100) : 0;
@@ -95,7 +111,7 @@ export default function SessionConsole({
           <span className="mono">{session.id}</span>{" "}
           <span className={`badge ${phaseBadge.cls}`}>{phaseBadge.label}</span>
         </div>
-        {variant === "embedded" && phase !== "ended" && (
+        {variant === "embedded" && (
           <Link className="mono" href={`/admin/${session.id}`}>
             {ja.admin.consoleOpen} →
           </Link>
@@ -135,13 +151,25 @@ export default function SessionConsole({
         </div>
       </div>
 
-      <p style={{ marginTop: 4 }}>
-        <a
-          href={dejDashboardUrl(session.id)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {ja.admin.openDashboard} →
+      <p style={{ marginTop: 16 }}>
+        <strong>{ja.admin.playerUrl}:</strong>{" "}
+        <a href={playerUrl} target="_blank" rel="noreferrer">
+          {ja.admin.openPlayer}
+        </a>{" "}
+        <button className="secondary" onClick={copyPlayerUrl}>
+          {copied ? ja.admin.copied : ja.admin.copy}
+        </button>
+      </p>
+      <p>
+        <strong>{ja.admin.leaderboardUrl}:</strong>{" "}
+        <a href={leaderboardUrl} target="_blank" rel="noreferrer">
+          {ja.admin.openLeaderboard}
+        </a>
+      </p>
+      <p>
+        <strong>{ja.admin.dashboardUrl}:</strong>{" "}
+        <a href={dejDashboardUrl(session.id)} target="_blank" rel="noreferrer">
+          {ja.admin.openDashboard}
         </a>
       </p>
 
@@ -170,12 +198,11 @@ export default function SessionConsole({
         </>
       )}
 
-      {variant === "full" && phase !== "ended" && (
+      {phase !== "ended" && (
         <div className="console-actions" style={{ marginTop: 12 }}>
           <button className="secondary" onClick={end}>
             {ja.admin.endSession}
           </button>
-          <Link href={`/leaderboard/${session.id}`}>{ja.admin.openLeaderboard}</Link>
         </div>
       )}
     </section>

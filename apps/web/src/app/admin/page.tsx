@@ -188,11 +188,17 @@ export default function AdminPage() {
 
       <h3>{ja.admin.liveSessionHeading}</h3>
       {liveSession ? (
-        <SessionConsole
-          sessionId={liveSession.id}
-          variant="embedded"
-          onChanged={loadSessions}
-        />
+        <>
+          <SessionConsole
+            sessionId={liveSession.id}
+            variant="embedded"
+            onChanged={loadSessions}
+          />
+          <div className="panel">
+            <h4>{ja.admin.leaderboardHeading}</h4>
+            <LeaderboardTable sessionId={liveSession.id} />
+          </div>
+        </>
       ) : (
         <p className="muted">{ja.admin.noLiveSession}</p>
       )}

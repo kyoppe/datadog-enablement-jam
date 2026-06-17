@@ -39,7 +39,6 @@ export default async function PlayPage({
             display_title: q.display_title,
             description: q.description,
             starting_point: q.starting_point,
-            datadog_path: q.datadog_path,
             // Strip server-only fields (expected answer, points) before sending
             // the quest to the client.
             answer_fields: q.answer_fields.map((f) => ({

@@ -2,10 +2,13 @@
 # UI-facing copy is Japanese; identifiers and config keys stay English.
 #
 # Narrative arc, quest 1 of 4: orientation / triage. The player opens the
-# store-frontend APM Service Page and recognizes that BOTH the error rate and
-# the latency are abnormal. This sets up quest 2 (errors) and quests 3-4
-# (latency). Telemetry source: the always-on Storedog + Locust data plane on
-# EC2 (see docs/data-plane.md), env:dej.
+# store-frontend APM Service Page and recognizes that the ERROR rate is clearly
+# abnormal. Latency is intentionally NOT a correct answer here: the data plane
+# runs under constant load (no "before" baseline), so on the Service Page
+# overview the obviously-wrong signal is errors. High latency is only evident
+# once you sort the Resource list, which is the subject of quests 3-4.
+# Telemetry source: the always-on Storedog + Locust data plane on EC2
+# (see docs/data-plane.md), env:dej.
 id: apm-store-triage
 module: apm-troubleshoot-workflow
 scenario: storedog-frontend
@@ -13,35 +16,32 @@ scenario: storedog-frontend
 title: Service Page Triage
 display_title: Service Page で異常に気づく
 
-# Symptom only: do not reveal which signals are abnormal (that is the answer).
+# Symptom only: do not reveal which signal is abnormal (that is the answer).
 description: >-
   store-frontend の APM Service Page を開き、サービスの状態を確認してください。
-  リクエスト数・エラー率・レイテンシ（応答時間）の直近の推移を見て、何か問題が
-  起きていることに気づけますか？
-
-# Pre-filtered Datadog deep link: store-frontend APM service page, env:dej.
-datadog_path: /apm/services/store-frontend?env=dej
+  リクエスト数・エラー数・レイテンシ（応答時間）のグラフを見て、明らかに
+  問題が起きていると判断できる指標はどれですか？
 
 starting_point: >-
-  「APM Service Page を開く」リンク（store-frontend / env:dej で絞り込み済み）から、
-  リクエスト数・エラー率・レイテンシ（p95 など）のグラフの直近の変化を確認してください。
+  Datadog の APM Service Page で store-frontend(env:dej)を開くと、リクエスト数・
+  エラー数・レイテンシのグラフが確認できます。明らかに問題が起きている指標を
+  探してください。
 
 # Ordered answer fields. multi_choice is graded as an unordered set.
 answer_fields:
   - key: abnormal_signals
     type: multi_choice
-    prompt: リクエスト数・エラー率・レイテンシ（応答時間）のうち、異常（悪化）が見られるものをすべて選んでください。
-    label: 異常が見られる指標
+    prompt: リクエスト数・エラー数・レイテンシ（応答時間）のうち、Service Page の概観で明らかに問題だと判断できるものをすべて選んでください。
+    label: 問題だと判断できる指標
     options:
       - value: rate
         label: リクエスト数 (Rate)
       - value: errors
-        label: エラー率 (Errors)
+        label: エラー数 (Errors)
       - value: latency
         label: レイテンシ (Duration / p95)
     expected:
       - errors
-      - latency
     points: 300
     required: true
 
@@ -58,9 +58,10 @@ scoring:
 hints:
   - label: ヒント 1
     text: >-
-      Service Page の上部にある時系列グラフ（Requests / Errors / Latency）を、
-      直近の時間帯で確認してください。平常時と比べて跳ねている指標はどれですか？
+      Service Page の上部にある時系列グラフ（Requests / Errors / Latency）を
+      確認してください。明らかにおかしいと分かる指標はどれですか？
   - label: ヒント 2
     text: >-
-      エラー率（Errors）の上昇と、レイテンシ（Duration / p95）の悪化の両方が
-      見られます。リクエスト数（Rate）自体は大きな異常ではありません。
+      Service Page の概観で明らかに問題だと分かるのは Errors（エラー数）です。
+      レイテンシは Resource 一覧を見ないと判断しづらく、リクエスト数（Rate）自体は
+      問題ではありません。

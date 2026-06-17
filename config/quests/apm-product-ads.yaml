@@ -2,10 +2,13 @@
 # UI-facing copy is Japanese; identifiers and config keys stay English.
 #
 # Narrative arc, quest 3 of 4: investigate the latency surfaced in the triage
-# quest. Confirmed from APM (env:dej): Spree::ProductsController#show is the
-# highest-p95 endpoint on store-frontend, and its time is dominated by the
+# quest. Confirmed from APM (env:dej): the product detail page
+# (Spree::ProductsController#show, p95 ~7.0s) has its time dominated by the
 # downstream ads-service GET /ads call (~78% of the request in inspected
-# traces). Telemetry: always-on Storedog + Locust data plane on EC2.
+# traces). Because ProductsController#show and HomeController#index have nearly
+# tied p95 (~7.0s vs ~6.9s), this quest NAMES the page instead of asking the
+# player to pick the single slowest resource; the dominant cause is asked as a
+# guided multiple-choice. Telemetry: always-on Storedog + Locust data plane.
 id: apm-product-ads
 module: apm-troubleshoot-workflow
 scenario: storedog-product-ads
@@ -13,38 +16,43 @@ scenario: storedog-product-ads
 title: Slow Product Page Investigation
 display_title: 商品ページ遅延の調査
 
-# Symptom only: do not name the slow resource / downstream service (answers).
+# Symptom only: do not name the downstream service / call (answers).
 description: >-
-  トリアージで見つけたレイテンシ悪化を掘り下げます。store-frontend の Service Page で
-  Resource ごとのレイテンシを確認し、最も遅いページを特定してください。さらにその
-  Trace Sample（フレームグラフ）から、遅延の主因となっている下流サービスと、その
-  呼び出しを突き止めてください。
-
-# Pre-filtered Datadog deep link: store-frontend APM service page, env:dej.
-datadog_path: /apm/services/store-frontend?env=dej
+  Service Page で見つけたレイテンシ悪化を掘り下げます。商品詳細ページ
+  (Spree::ProductsController#show)の Resource / Endpoint ページから Trace 一覧を開き、
+  1つの Trace のフレームグラフを見て、リクエスト時間の大半を占めている主因を
+  突き止めてください。
 
 starting_point: >-
-  「APM Service Page を開く」リンク（store-frontend / env:dej で絞り込み済み）を開き、
-  Resource 一覧でレイテンシ（p95）が最も高い Resource を確認してください。
+  APM の store-frontend Service Page(env:dej)で、商品詳細ページ
+  (Spree::ProductsController#show)の Resource / Endpoint ページを開き、Trace 一覧から
+  1つの Trace のフレームグラフを確認してください。
 
 answer_fields:
-  - key: slow_resource
-    prompt: Resource / Endpoint の一覧で、p95 が最も高い（最も遅い）ものはどれですか？
-    label: 最も遅い Resource / Endpoint
-    expected: Spree::ProductsController#show
-    points: 200
-    required: true
-  - key: root_cause_service
-    prompt: その Resource の遅延の大半を占めている下流サービスはどれですか？
-    label: 主因となっている下流サービス
-    expected: ads-service
+  - key: main_cause
+    type: multi_choice
+    prompt: 商品詳細ページ(Spree::ProductsController#show)の Resource / Endpoint ページを開き、Trace 一覧から1つの Trace のフレームグラフを開いて、リクエスト時間の大半を占めているものを選んでください。
+    label: 遅延の主因
+    options:
+      - value: downstream_ads
+        label: 下流 ads-service への呼び出し
+      - value: downstream_discounts
+        label: 下流 discounts-service への呼び出し
+      - value: db_postgres
+        label: postgres のクエリ
+      - value: image
+        label: 画像配信(Spree::Image / アセット)
+      - value: self_cpu
+        label: store-frontend 自身の処理
+    expected:
+      - downstream_ads
     points: 300
     required: true
   - key: downstream_call
-    prompt: その下流サービスへの呼び出し（Operation / Resource 名）は何ですか？
+    prompt: その下流サービスの呼び出し(Operation / Resource 名)は何ですか？
     label: 下流への呼び出し
     expected: GET /ads
-    points: 100
+    points: 300
     required: true
 
 scoring:
@@ -61,13 +69,13 @@ scoring:
 hints:
   - label: ヒント 1
     text: >-
-      store-frontend の APM Service Page の Resource 一覧で、p95 が最も高い Resource を
-      探してください。
+      商品詳細ページ(Spree::ProductsController#show)の Resource / Endpoint ページの
+      Trace 一覧から、1つの Trace のフレームグラフを開いてください。
   - label: ヒント 2
     text: >-
-      その Resource の Trace Sample を開き、フレームグラフで下流 Span の Duration を
-      比較してください。特定の下流サービスの呼び出しが支配的なはずです。
+      フレームグラフで下流 Span の Duration を比較してください。特定の下流サービスの
+      呼び出しが支配的で、DB クエリ自体は短いはずです。
   - label: ヒント 3
     text: >-
-      最も遅い Resource は Spree::ProductsController#show（商品詳細ページ）で、支配的な
-      下流は ads-service（GET /ads）です。広告取得の応答がリクエスト時間の大半を占めます。
+      支配的なのは ads-service への呼び出し(GET /ads)です。広告取得の応答が
+      リクエスト時間の大半を占めます。

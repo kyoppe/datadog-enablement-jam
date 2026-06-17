@@ -73,9 +73,6 @@ export default function LeaderboardTable({ sessionId }: { sessionId: string }) {
             <td>{r.name}</td>
             <td>
               <strong>{r.score}</strong>
-              {r.speedBonus > 0 && (
-                <span className="muted"> (+{r.speedBonus})</span>
-              )}
             </td>
             <td>
               {r.answeredCount}/{r.totalQuests}

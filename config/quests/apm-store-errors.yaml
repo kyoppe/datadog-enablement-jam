@@ -1,10 +1,13 @@
 # DEJ quest definition (source of truth for player UI copy and scoring).
 # UI-facing copy is Japanese; identifiers and config keys stay English.
 #
-# Narrative arc, quest 2 of 4: investigate the errors surfaced in the triage
-# quest. Confirmed from APM (env:dej): the dominant store-frontend error is
-# ActionView::Template::Error on the resource spree/shared/_head.html.erb (a
-# shared partial rendered on most pages). The error originates in store-frontend
+# Narrative arc, quest 2 of 4: investigate the errors surfaced in the Service
+# Page quest. Confirmed from APM (env:dej): the dominant store-frontend error is
+# ActionView::Template::Error. Because it originates in the shared partial
+# spree/shared/_head.html.erb (rendered on most pages), it surfaces across many
+# entry resources (Home#index, Orders#edit, Products#show, ...) — so the single
+# stable answer is the erroring Span itself, named spree/shared/_head.html.erb
+# (= the rails.template_name attribute). The error originates in store-frontend
 # itself (NOT a downstream dependency). Telemetry: always-on Storedog + Locust
 # data plane on EC2 (see docs/data-plane.md).
 id: apm-store-errors
@@ -17,28 +20,33 @@ display_title: エラーの調査
 # Symptom only: do not reveal the error type / resource / origin (those are the
 # answers). Hints reveal them progressively.
 description: >-
-  トリアージで見つけたエラーを掘り下げます。store-frontend の Error Tracking
-  （または status:error のトレース）を開き、最も多く発生しているエラーについて、
-  その種別・発生箇所・発生元のサービスを特定してください。
-
-# Pre-filtered Datadog deep link: Error Tracking, service:store-frontend env:dej.
-datadog_path: /apm/error-tracking?query=service%3Astore-frontend%20env%3Adej
+  Service Page で見つけたエラーを掘り下げます。store-frontend の Service Page の
+  Errors セクションを開き、最も多く発生しているエラーについて、その種別・
+  エラーになっている Span・発生元のサービスを特定してください。
 
 starting_point: >-
-  「Error Tracking を開く」リンク（store-frontend / env:dej で絞り込み済み）を開き、
-  発生件数が最も多いエラーから確認してください。
+  store-frontend(env:dej)の Service Page を開き、Errors セクションで発生件数が
+  最も多いエラーから調べます。そのエラーのトレースを開いてフレームグラフを見ると、
+  どの Span でエラーになっているかが分かります。
 
 answer_fields:
   - key: error_type
-    prompt: 最も発生件数が多いエラーの種別（Error Type）は何ですか？
+    prompt: 最も発生件数が多いエラーの種別(Error Type)は何ですか？
     label: エラー種別
     expected: ActionView::Template::Error
     points: 200
     required: true
   - key: error_resource
-    prompt: そのエラーが発生している Resource / Endpoint はどれですか？
-    label: 発生箇所 (Resource / Endpoint)
-    expected: spree/shared/_head.html.erb
+    prompt: >-
+      フレームグラフ上で、エラーが発生している Span の名称は何ですか？
+      (どの起点リソースのトレースでも同じ Span です / rails.template_name 属性とも一致します)
+    label: エラー Span 名
+    expected:
+      - spree/shared/_head.html.erb
+      - shared/_head.html.erb
+      - _head.html.erb
+      - /app/app/views/spree/shared/_head.html.erb
+      - /app/app/views/spree/shared/_head.html.erb:8
     points: 300
     required: true
   - key: error_service
@@ -62,13 +70,15 @@ scoring:
 hints:
   - label: ヒント 1
     text: >-
-      store-frontend の APM Service Page でエラー率の上昇を確認し、Error Tracking で
-      発生件数の多いエラーから見てください。
+      store-frontend の Service Page の Errors セクションで、発生件数が最も多い
+      エラーから見てください。そのトレースを開いてフレームグラフを確認します。
   - label: ヒント 2
     text: >-
-      最も多いエラー種別は ActionView::Template::Error（テンプレート描画エラー）です。
-      どの Resource で発生しているかを確認してください。
+      最も多いエラー種別は ActionView::Template::Error(描画エラー)です。共有パーシャル
+      が原因のため、Home#index・Orders#edit・Products#show など多数の起点リソースに
+      横断して発生します。どのトレースでも、エラーになっている Span は同じです。
   - label: ヒント 3
     text: >-
-      エラーは共有パーシャル spree/shared/_head.html.erb の描画で発生しています。
+      エラーになっている Span は共有パーシャル spree/shared/_head.html.erb です
+      (Span の rails.template_name 属性、またはスタックトレースの Copy File path で確認)。
       下流サービスではなく store-frontend 自身のエラーです。

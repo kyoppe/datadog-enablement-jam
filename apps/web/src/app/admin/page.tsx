@@ -134,14 +134,26 @@ export default function AdminPage() {
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
   }
 
-  async function startProblem(id: string) {
-    if (!window.confirm(ja.admin.confirmStart)) return;
+  async function patchStart(id: string) {
     await fetch(`/api/sessions/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "start" }),
     });
     await loadSessions();
+  }
+
+  async function startProblem(id: string) {
+    if (!window.confirm(ja.admin.confirmStart)) return;
+    await patchStart(id);
+  }
+
+  // Escape hatch for the TEM: the normal start button is gated on everyone being
+  // logged in. If a participant is AFK and never logs in, this lets the host
+  // start anyway after an explicit warning.
+  async function forceStartProblem(id: string) {
+    if (!window.confirm(ja.admin.confirmForceStart)) return;
+    await patchStart(id);
   }
 
   async function endSession(id: string) {
@@ -230,6 +242,10 @@ export default function AdminPage() {
           const phase = s.phase ?? (ended ? "ended" : "running");
           const moduleNames = (s.moduleIds ?? []).map(moduleTitle).join(", ");
           const stat = logins[s.id];
+          const loginTotal = stat?.total ?? 0;
+          const loginDone = stat?.loggedIn ?? 0;
+          // Start is gated until every joined player has confirmed Datadog login.
+          const allLoggedIn = loginTotal > 0 && loginDone === loginTotal;
           const phaseBadge =
             phase === "ended"
               ? { cls: "pending", label: ja.admin.statusEnded }
@@ -295,12 +311,25 @@ export default function AdminPage() {
                   );
                 })()}
 
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                {phase === "lobby" && (
-                  <button onClick={() => startProblem(s.id)}>
-                    {ja.admin.startProblem}
-                  </button>
-                )}
+              <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                {phase === "lobby" &&
+                  (allLoggedIn ? (
+                    <button onClick={() => startProblem(s.id)}>
+                      {ja.admin.startProblem}
+                    </button>
+                  ) : (
+                    <>
+                      <button disabled title={ja.admin.startProblemGatedNote}>
+                        {ja.admin.startProblem}
+                      </button>
+                      <button
+                        className="secondary"
+                        onClick={() => forceStartProblem(s.id)}
+                      >
+                        {ja.admin.forceStart}
+                      </button>
+                    </>
+                  ))}
                 {!ended && (
                   <button className="secondary" onClick={() => endSession(s.id)}>
                     {ja.admin.endSession}
@@ -310,6 +339,11 @@ export default function AdminPage() {
                   {ja.admin.deleteSession}
                 </button>
               </div>
+              {phase === "lobby" && !allLoggedIn && (
+                <p className="muted" style={{ marginTop: -4, marginBottom: 12 }}>
+                  {ja.admin.startProblemGatedNote}
+                </p>
+              )}
 
               <p style={{ marginTop: 16 }}>
                 <strong>{ja.admin.playerUrl}:</strong>{" "}

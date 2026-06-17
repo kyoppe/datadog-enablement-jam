@@ -129,10 +129,6 @@ export interface Quest {
   display_title: string;
   description: string;
   starting_point: string;
-  // Path (under NEXT_PUBLIC_DD_APP_URL) to a Datadog view pre-filtered for this
-  // quest (e.g. the APM service page or Error Tracking, scoped to env:dej).
-  // Rendered as a one-click "open in Datadog" link in the player UI.
-  datadog_path?: string;
   // Ordered list of answer fields. Each field carries its own points/expected.
   answer_fields: QuestAnswerField[];
   scoring: {

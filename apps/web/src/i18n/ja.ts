@@ -43,6 +43,11 @@ export const ja = {
     statusRunning: "問題進行中",
     startProblem: "問題スタート",
     confirmStart: "問題を開始しますか? 参加者の画面にクエストが表示されます。",
+    forceStart: "強制的に開始",
+    confirmForceStart:
+      "まだ全員が Datadog にログインしていません。それでも問題を開始しますか? (スコアは記録されます)",
+    startProblemGatedNote:
+      "全員が Datadog にログインするまで「問題スタート」は押せません。AFK などで待てない場合は「強制的に開始」を使ってください。",
     startedAt: "開始日時",
     loginProgress: "Datadog ログイン状況",
     loginCount: "ログイン済み",
@@ -74,8 +79,6 @@ export const ja = {
     progressLabel: "回答済み",
     noQuests: "このセッションにはクエストがありません",
     questStartingPointLabel: "調査の起点",
-    openInDatadog: "Datadog で開く",
-    openInDatadogHint: "（env:dej で絞り込み済み / 別タブで開きます）",
     answerHeading: "回答",
     submitAnswer: "回答を送信",
     showHint: "ヒントを見る",

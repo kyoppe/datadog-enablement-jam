@@ -2,12 +2,14 @@
 # UI-facing copy is Japanese; identifiers and config keys stay English.
 #
 # Narrative arc, quest 4 of 4: a second latency case. Confirmed from APM
-# (env:dej): the home page span Spree::HomeController#index spends the
-# overwhelming majority of its time in the downstream discounts-service
+# (env:dej): the home page span Spree::HomeController#index (p95 ~6.9s) spends
+# the overwhelming majority of its time in the downstream discounts-service
 # GET /discount call (~88% of the request in inspected traces). The postgres
 # queries inside discounts-service are each only ~1-6ms, so the root cause is
-# the downstream service response, not the DB. Telemetry: always-on Storedog +
-# Locust data plane on EC2.
+# the downstream service response, not the DB. Because HomeController#index and
+# ProductsController#show have nearly tied p95, this quest NAMES the page rather
+# than asking the player to pick the single slowest resource; the dominant cause
+# is asked as a guided multiple-choice. Telemetry: always-on Storedog + Locust.
 id: apm-home-discounts
 module: apm-troubleshoot-workflow
 scenario: storedog-home-discounts
@@ -15,37 +17,43 @@ scenario: storedog-home-discounts
 title: Slow Home Page Investigation
 display_title: ホームページ遅延の調査
 
-# Symptom only: do not name the resource / downstream service (answers).
+# Symptom only: do not name the downstream service / call (answers).
 description: >-
-  トップページのレイテンシも悪化しています。Trace Sample（フレームグラフ）で、
-  リクエスト時間の大半を占めている下流サービスと、その呼び出しを特定してください。
-  なお下流サービス内の DB クエリ自体は高速です。
-
-# Pre-filtered Datadog deep link: store-frontend APM service page, env:dej.
-datadog_path: /apm/services/store-frontend?env=dej
+  トップページ(Spree::HomeController#index)のレイテンシも悪化しています。
+  Resource / Endpoint ページから Trace 一覧を開き、1つの Trace のフレームグラフを見て、
+  リクエスト時間の大半を占めている主因を特定してください。なお下流サービス内の
+  DB クエリ自体は高速です。
 
 starting_point: >-
-  「APM Service Page を開く」リンク（store-frontend / env:dej で絞り込み済み）から
-  調査を開始し、トップページの Trace Sample を確認してください。
+  APM の store-frontend Service Page(env:dej)で、トップページ
+  (Spree::HomeController#index)の Resource / Endpoint ページを開き、Trace 一覧から
+  1つの Trace のフレームグラフを確認してください。
 
 answer_fields:
-  - key: root_cause_service
-    prompt: トップページのリクエスト時間の大半を占めている下流サービスはどれですか？
-    label: 主因となっている下流サービス
-    expected: discounts-service
+  - key: main_cause
+    type: multi_choice
+    prompt: トップページ(Spree::HomeController#index)の Resource / Endpoint ページを開き、Trace 一覧から1つの Trace のフレームグラフを開いて、store-frontend 以外でリクエスト時間の大半を占めているものを選んでください。
+    label: 遅延の主因
+    options:
+      - value: downstream_ads
+        label: 下流 ads-service への呼び出し
+      - value: downstream_discounts
+        label: 下流 discounts-service への呼び出し
+      - value: db_postgres
+        label: postgres のクエリ
+      - value: image
+        label: 画像配信(Spree::Image / アセット)
+      - value: self_cpu
+        label: store-frontend 自身の処理
+    expected:
+      - downstream_discounts
     points: 300
     required: true
   - key: downstream_call
-    prompt: その下流サービスへの呼び出し（Operation / Resource 名）は何ですか？
+    prompt: その下流サービスの呼び出し(Operation / Resource 名)は何ですか？
     label: 下流への呼び出し
     expected: GET /discount
-    points: 200
-    required: true
-  - key: top_resource
-    prompt: トップページに対応する APM の Resource / Endpoint 名は何ですか？
-    label: トップページの Resource / Endpoint
-    expected: Spree::HomeController#index
-    points: 100
+    points: 300
     required: true
 
 scoring:
@@ -62,13 +70,13 @@ scoring:
 hints:
   - label: ヒント 1
     text: >-
-      store-frontend の APM Service Page で、トップページ（Spree::HomeController#index）の
-      レイテンシ（p95 など）の悪化を確認してください。
+      トップページ(Spree::HomeController#index)の Resource / Endpoint ページの
+      Trace 一覧から、1つの Trace のフレームグラフを開いてください。
   - label: ヒント 2
     text: >-
-      その Resource の Trace Sample を開き、フレームグラフで下流サービスの Span Duration を
-      比較してください。
+      フレームグラフで下流サービスの Span Duration を比較してください。下流内の DB クエリ
+      自体は速いはずです。
   - label: ヒント 3
     text: >-
-      支配的な下流は discounts-service（GET /discount）です。discounts-service 内の DB クエリ
-      自体は速く、サービスの応答が遅いことが原因です。
+      支配的なのは discounts-service への呼び出し(GET /discount)です。サービスの応答
+      自体が遅いことが原因です。

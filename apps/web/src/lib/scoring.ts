@@ -26,8 +26,10 @@ function fieldMatches(field: QuestAnswerField, value: string | undefined): boole
       expected.length === got.length && expected.every((v, i) => v === got[i])
     );
   }
-  const expected = Array.isArray(field.expected) ? field.expected[0] : field.expected;
-  return normalize(value) === normalize(expected);
+  // text: accept any of the listed answers (covers notation variants), so a
+  // single string still works and a list grades as "match any".
+  const expecteds = Array.isArray(field.expected) ? field.expected : [field.expected];
+  return expecteds.some((e) => normalize(value) === normalize(e));
 }
 
 // Raw answers keyed by quest answer-field key.

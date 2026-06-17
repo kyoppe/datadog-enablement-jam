@@ -20,17 +20,11 @@ export interface PublicQuest {
   display_title: string;
   description: string;
   starting_point: string;
-  datadog_path?: string;
   // Ordered list of fields; order drives the stepwise prompt -> input layout.
   answer_fields: PublicAnswerField[];
   hints: { label: string; text: string }[];
   max_score: number;
 }
-
-// Base URL of the org's Datadog app (e.g. https://kyouhei.datadoghq.com).
-// Used to turn each quest's datadog_path into a one-click deep link.
-const DD_APP_URL =
-  process.env.NEXT_PUBLIC_DD_APP_URL || "https://app.datadoghq.com";
 
 export interface PublicModule {
   id: string;
@@ -476,18 +470,6 @@ export default function PlayClient({
               <strong>{ja.player.questStartingPointLabel}:</strong>{" "}
               {currentQuest.starting_point}
             </p>
-            {currentQuest.datadog_path && (
-              <p>
-                <a
-                  href={`${DD_APP_URL}${currentQuest.datadog_path}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {ja.player.openInDatadog}
-                </a>{" "}
-                <span className="muted">{ja.player.openInDatadogHint}</span>
-              </p>
-            )}
           </div>
 
           <div className="panel">
@@ -553,9 +535,6 @@ export default function PlayClient({
                 {results[currentQuest.id].verdict === "partiallyCorrect" &&
                   ja.score.partiallyCorrect}
                 {results[currentQuest.id].verdict === "incorrect" && ja.score.incorrect}
-                {results[currentQuest.id].speedBonus > 0 && (
-                  <span> ({ja.score.speedBonus} +{results[currentQuest.id].speedBonus})</span>
-                )}
               </div>
             )}
           </div>

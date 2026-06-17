@@ -113,7 +113,7 @@ export default function SessionConsole({
         </div>
         {variant === "embedded" && (
           <Link className="mono" href={`/admin/${session.id}`}>
-            {ja.admin.consoleOpen} →
+            {ja.admin.consoleOpen}
           </Link>
         )}
         {variant === "full" && (

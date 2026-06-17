@@ -195,6 +195,7 @@ TEM オペレーションの流れ:
 - [`docs/architecture.md`](docs/architecture.md) - アーキテクチャと移行方針
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) - フェーズ整理 + 未決 ToDo
 - [`docs/hackathon-plan.md`](docs/hackathon-plan.md) - 3 日間の進め方
+- [`docs/devlog.md`](docs/devlog.md) - 開発日誌（3 日間でやったことのまとめ）
 
 ---
 

@@ -368,6 +368,10 @@ export default function AdminPage() {
               )}
 
               <p style={{ marginTop: 16 }}>
+                <strong>{ja.admin.consoleHeading}:</strong>{" "}
+                <Link href={`/admin/${s.id}`}>{ja.admin.consoleOpen}</Link>
+              </p>
+              <p>
                 <strong>{ja.admin.playerUrl}:</strong>{" "}
                 <a href={playerUrl}>{ja.admin.openPlayer}</a>{" "}
                 <button
@@ -379,10 +383,7 @@ export default function AdminPage() {
               </p>
               <p>
                 <strong>{ja.admin.leaderboardUrl}:</strong>{" "}
-                <a href={leaderboardUrl}>{ja.admin.openLeaderboard}</a>{" "}
-                <Link className="mono" href={`/admin/${s.id}`}>
-                  {ja.admin.consoleOpen} →
-                </Link>
+                <a href={leaderboardUrl}>{ja.admin.openLeaderboard}</a>
               </p>
               <p>
                 <strong>{ja.admin.dashboardUrl}:</strong>{" "}

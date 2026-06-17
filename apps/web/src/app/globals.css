@@ -376,3 +376,165 @@ th {
 .panel {
   box-shadow: var(--shadow);
 }
+
+/* ---- Session console (live focus view) ---- */
+.console-hero {
+  background: linear-gradient(135deg, rgba(99, 44, 166, 0.06), rgba(124, 58, 237, 0.04));
+  border: 1px solid rgba(99, 44, 166, 0.22);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.console-hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.console-hero-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.console-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.console-stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.console-stat-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.console-stat-num {
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.console-stat-num .denom {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.console-stat-num .unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.console-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.console-actions .big {
+  font-size: 1.05rem;
+  padding: 12px 22px;
+  font-weight: 700;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Podium (top 3 after a session ends) ---- */
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  margin: 8px 0 24px;
+  flex-wrap: wrap;
+}
+
+.podium-step {
+  flex: 1 1 0;
+  min-width: 120px;
+  max-width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.podium-step .medal {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.podium-step .pname {
+  font-weight: 700;
+  margin: 8px 0 2px;
+  word-break: break-word;
+}
+
+.podium-step .pscore {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.podium-step .pscore .unit {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 3px;
+}
+
+.podium-step .pmeta {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+/* 1st center & tallest, 2nd left, 3rd right. */
+.podium-step.rank-1 {
+  order: 2;
+  padding-top: 28px;
+  padding-bottom: 28px;
+  border-color: rgba(212, 160, 23, 0.5);
+  background: linear-gradient(180deg, rgba(212, 160, 23, 0.1), var(--panel));
+}
+
+.podium-step.rank-2 {
+  order: 1;
+  padding-top: 16px;
+}
+
+.podium-step.rank-3 {
+  order: 3;
+  padding-top: 10px;
+}
+
+.podium-rankno {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 6px;
+}

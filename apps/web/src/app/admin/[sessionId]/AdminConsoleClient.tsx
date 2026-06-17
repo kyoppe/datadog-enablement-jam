@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { ja } from "@/i18n/ja";
+import SessionConsole from "@/components/SessionConsole";
 import LeaderboardTable from "@/components/LeaderboardTable";
 import Podium from "@/components/Podium";
 
-export default function LeaderboardClient({ sessionId }: { sessionId: string }) {
+// Standalone, projector-friendly console for a single session: the live focus
+// hero plus the leaderboard (and the podium once the session has ended).
+export default function AdminConsoleClient({ sessionId }: { sessionId: string }) {
   const [ended, setEnded] = useState(false);
 
   useEffect(() => {
@@ -31,10 +34,12 @@ export default function LeaderboardClient({ sessionId }: { sessionId: string }) 
 
   return (
     <main>
-      <h1>{ja.leaderboard.heading}</h1>
+      <h1>{ja.admin.consoleHeading}</h1>
       <p className="subheading">
         {ja.admin.sessionId}: <span className="mono">{sessionId}</span>
       </p>
+
+      <SessionConsole sessionId={sessionId} variant="full" />
 
       {ended && (
         <div className="panel">
@@ -43,6 +48,7 @@ export default function LeaderboardClient({ sessionId }: { sessionId: string }) 
       )}
 
       <div className="panel">
+        <h3>{ja.admin.leaderboardHeading}</h3>
         <LeaderboardTable sessionId={sessionId} />
       </div>
     </main>

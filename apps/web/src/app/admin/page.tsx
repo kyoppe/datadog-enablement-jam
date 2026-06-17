@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ja } from "@/i18n/ja";
 import LeaderboardTable from "@/components/LeaderboardTable";
+import SessionConsole from "@/components/SessionConsole";
+import Podium from "@/components/Podium";
 import { copyText } from "@/lib/clipboard";
 
 type SessionPhase = "lobby" | "running" | "ended";
@@ -70,6 +73,7 @@ export default function AdminPage() {
   }, [sessions]);
 
   const hasActive = sessions.some((s) => s.status === "active");
+  const liveSession = sessions.find((s) => s.phase !== "ended");
   const moduleTitle = (id: string) =>
     modules.find((m) => m.id === id)?.display_title ?? id;
 
@@ -180,6 +184,17 @@ export default function AdminPage() {
     <main>
       <h1>{ja.admin.heading}</h1>
       <p className="subheading">{ja.admin.subheading}</p>
+
+      <h3>{ja.admin.liveSessionHeading}</h3>
+      {liveSession ? (
+        <SessionConsole
+          sessionId={liveSession.id}
+          variant="embedded"
+          onChanged={loadSessions}
+        />
+      ) : (
+        <p className="muted">{ja.admin.noLiveSession}</p>
+      )}
 
       <div className="panel">
         <h3>{ja.admin.createHeading}</h3>
@@ -357,8 +372,13 @@ export default function AdminPage() {
               </p>
               <p>
                 <strong>{ja.admin.leaderboardUrl}:</strong>{" "}
-                <a href={leaderboardUrl}>{ja.admin.openLeaderboard}</a>
+                <a href={leaderboardUrl}>{ja.admin.openLeaderboard}</a>{" "}
+                <Link className="mono" href={`/admin/${s.id}`}>
+                  {ja.admin.consoleOpen} →
+                </Link>
               </p>
+
+              {ended && <Podium sessionId={s.id} />}
 
               <h4>{ja.admin.leaderboardHeading}</h4>
               <LeaderboardTable sessionId={s.id} />

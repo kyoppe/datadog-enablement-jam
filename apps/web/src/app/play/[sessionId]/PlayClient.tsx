@@ -83,7 +83,7 @@ const emptyAnswer: AnswerInput = {};
 export default function PlayClient({
   sessionId,
   sessionName,
-  ended,
+  ended: initialEnded,
   phase: initialPhase,
   modules,
 }: Props) {
@@ -109,6 +109,9 @@ export default function PlayClient({
     setGameContext({ sessionId });
   }, [sessionId]);
 
+  // Source of truth for "session closed": the latest polled phase, falling back
+  // to the value from the initial server render.
+  const ended = phase === "ended" || initialEnded;
   const inLobby = joined && phase === "lobby";
 
   // Fetch the shared Datadog login once we reach the lobby (server-only route;
@@ -143,6 +146,23 @@ export default function PlayClient({
     }, 4000);
     return () => clearInterval(timer);
   }, [inLobby, sessionId]);
+
+  // While playing, poll so the screen locks dynamically if the host ends the
+  // session (running -> ended).
+  useEffect(() => {
+    if (!joined || phase !== "running") return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.session?.phase === "ended") setPhase("ended");
+      } catch {
+        // Ignore transient polling errors; we retry on the next tick.
+      }
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [joined, phase, sessionId]);
 
   async function copy(key: string, text: string) {
     await copyText(text);
@@ -413,22 +433,25 @@ export default function PlayClient({
         {ja.player.progressLabel}: {answeredCount}/{allQuests.length}
       </p>
 
-      {finished ? (
+      {ended ? (
+        <div className="panel">
+          <p className="badge pending">{ja.admin.statusEnded}</p>
+          <p className="muted">{ja.player.sessionClosedNotice}</p>
+        </div>
+      ) : finished ? (
         <div className="panel">
           <p className="badge ok">{ja.player.finishedBadge}</p>
           <p className="muted">{ja.player.finishedNotice}</p>
         </div>
       ) : (
-        !ended && (
-          <div className="panel">
-            <button className="secondary" onClick={finishAnswering}>
-              {ja.player.finishAnswering}
-            </button>
-            <p className="muted" style={{ marginTop: 8 }}>
-              {ja.player.finishHint}
-            </p>
-          </div>
-        )
+        <div className="panel">
+          <button className="secondary" onClick={finishAnswering}>
+            {ja.player.finishAnswering}
+          </button>
+          <p className="muted" style={{ marginTop: 8 }}>
+            {ja.player.finishHint}
+          </p>
+        </div>
       )}
 
       <div className="panel">

@@ -99,6 +99,8 @@ export const ja = {
     confirmFinish: "回答を終了しますか? 以降は回答できなくなります（スコアは確定します）。",
     finishedBadge: "回答終了済み ✓",
     finishedNotice: "回答を終了しました。お疲れさまでした。リーダーボードで結果を確認できます。",
+    sessionClosedNotice:
+      "セッションが終了しました。回答は締め切られました。リーダーボードで結果を確認してください。",
   },
 
   lobby: {

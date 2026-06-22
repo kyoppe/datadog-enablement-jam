@@ -25,3 +25,6 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# Cursor (local AI rules / config, not committed)
+.cursor/
